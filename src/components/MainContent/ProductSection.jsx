@@ -21,6 +21,7 @@ export default function ProductSection({ title, brands, category }) {
         });
         
         setProducts(res.data.data || []);
+        
       } catch (e) {
         console.error("Error fetching products:", e);
         

@@ -16,7 +16,7 @@ function Header() {
       <div className="container mx-auto flex items-center justify-between px-4 py-2">
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <span className="text-(--my-blue) font-bold text-lg">Tech Shop</span>
+          <a href="/home" className="text-(--my-blue) font-bold text-lg">Tech Shop</a>
         </div>
 
         {/* Danh mục + search */}
