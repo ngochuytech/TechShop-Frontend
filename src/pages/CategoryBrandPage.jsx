@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from 'react-router-dom';
 import Header from "../components/Header/Header";
 import ProductCard from "../components/MainContent/ProductCard";
 import DualRangePriceSlider from "../components/DualRangePriceSlider";
@@ -185,89 +185,8 @@ const FILTER_LABELS = {
   WALL_HANGING: "Treo tường",
 };
 
-const BRANDS = {
-  Laptop: [
-    { label: "Macbook", imageUrl: "/assets/brands/macbook.webp" },
-    { label: "Asus", imageUrl: "/assets/brands/Asus.webp" },
-    { label: "Lenovo", imageUrl: "/assets/brands/Lenovo.webp" },
-    { label: "MSI", imageUrl: "/assets/brands/MSI.webp" },
-    { label: "Acer", imageUrl: "/assets/brands/acer.webp"},
-    { label: "HP", imageUrl: "/assets/brands/HP.webp" },
-    { label: "Dell", imageUrl: "/assets/brands/Dell.webp" },
-    { label: "LG", imageUrl: "/assets/brands/LG.webp" },
-    { label: "Masstel", imageUrl: "/assets/brands/masstel.webp" }
-  ],
-  Desktop: [
-
-  ],
-  "Màn hình": [
-    { label: "Asus", imageUrl: "/assets/brands/Asus.webp" },
-    { label: "LG", imageUrl: "/assets/brands/LG.webp" },
-    { label: "Samsung", imageUrl: "/assets/brands/samsung.webp" },
-    { label: "Acer", imageUrl: "/assets/brands/acer.webp"},
-    { label: "Viewsonic", imageUrl: "/assets/brands/viewsonic.webp" },
-    { label: "Dell", imageUrl: "/assets/brands/Dell.webp" },
-    { label: "Xiaomi", imageUrl: "/assets/brands/xiaomi.webp" },
-    { label: "MSI", imageUrl: "/assets/brands/MSI.webp" },
-    { label: "Lenovo", imageUrl: "/assets/brands/Lenovo.webp" },
-    { label: "E-DRA", imageUrl: "/assets/brands/edra.webp" },
-    { label: "AOC", imageUrl: "/assets/brands/aoc.webp" },
-    { label: "Dahua", imageUrl: "/assets/brands/dahua.webp" }
-  ],
-  "Ổ cứng": [
-    { label: "Kingston", imageUrl: "/assets/brands/kingston.webp" },
-    { label: "SanDisk", imageUrl: "/assets/brands/SanDisk.webp" },
-    { label: "Samsung", imageUrl: "/assets/brands/samsung.webp" },
-    { label: "Western Digital", imageUrl: "/assets/brands/western-digital.webp" },
-    { label: "Lexar", imageUrl: "/assets/brands/lexar.webp" },
-    { label: "PNY", imageUrl: "/assets/brands/PNY.webp" },
-    { label: "Asus", imageUrl: "/assets/brands/Asus.webp" },
-    { label: "MSI", imageUrl: "/assets/brands/MSI.webp" },
-    { label: "SEAGATE", imageUrl: "/assets/brands/seagate.webp" },
-    { label: "ORICO", imageUrl: "/assets/brands/orico.webp" },
-    { label: "Synology", imageUrl: "/assets/brands/synology.webp" },
-  ],
-  Ram: [
-    { label: "Kingston", imageUrl: "/assets/brands/kingston.webp" },
-    { label: "Samsung", imageUrl: "/assets/brands/samsung.webp" },
-    { label: "Lexar", imageUrl: "/assets/brands/lexar.webp" },
-    { label: "Adata", imageUrl: "/assets/brands/adata.webp" },
-    { label: "PNY", imageUrl: "/assets/brands/PNY.webp" },
-    { label: "Patriot", imageUrl: "/assets/brands/patriot.webp" },
-  ],
-  Loa: [
-    { label: "JBL", imageUrl: "/assets/brands/jbl.webp" },
-    { label: "Marshall", imageUrl: "/assets/brands/marshall.webp" },
-    { label: "LG", imageUrl: "/assets/brands/LG.webp" },
-    { label: "Sony", imageUrl: "/assets/brands/sony.webp" },
-    { label: "Bose", imageUrl: "/assets/brands/bose.webp" },
-    { label: "Samsung", imageUrl: "/assets/brands/samsung.webp" },
-    { label: "Xiaomi", imageUrl: "/assets/brands/xiaomi.webp" },
-    { label: "Edifier", imageUrl: "/assets/brands/edifier.webp" },
-    { label: "Havit", imageUrl: "/assets/brands/havit.webp" },
-    { label: "Logitech", imageUrl: "/assets/brands/logitech.webp" },
-    { label: "Anker", imageUrl: "/assets/brands/anker.webp" },
-  ],
-  Micro: [
-    { label: "Saramonic", imageUrl: "/assets/brands/saramonic.webp" },
-    { label: "Boya", imageUrl: "/assets/brands/boya.webp" },
-    { label: "JBL", imageUrl: "/assets/brands/jbl.webp" },
-    { label: "AKG", imageUrl: "/assets/brands/AKG.webp" },
-    { label: "Shure", imageUrl: "/assets/brands/shure.webp" },
-    { label: "Rode", imageUrl: "/assets/brands/rode.webp" },
-  ],
-  Webcam: [
-    { label: "Logitech", imageUrl: "/assets/brands/logitech.webp" },
-    { label: "Asus", imageUrl: "/assets/brands/Asus.webp" },
-    { label: "Tapo", imageUrl: "/assets/brands/tapo.webp" },
-    { label: "Dahua", imageUrl: "/assets/brands/dahua.webp" },
-    { label: "Xiaomi", imageUrl: "/assets/brands/xiaomi.webp" },
-  ]
-}
-
 export default function CategoryDetail() {
-  const [searchParams] = useSearchParams();
-  const category = searchParams.get("category") || null;
+  const { category, brand } = useParams();
   const filtersForCategory = FILTERS_BY_CATEGORY[category] || [];
   const [filterDropdown, setFilterDropdown] = useState("");
   const [filters, setFilters] = useState({});
@@ -275,12 +194,10 @@ export default function CategoryDetail() {
   const [sort, setSort] = useState("popular");
   const [products, setProducts] = useState([]);
 
-  const navigate = useNavigate();
-
   // Gọi API lấy sản phẩm theo category
   useEffect(() => {
-    fetchAllProducts();
-  }, [category]);
+    fetchAllProductsWithBrand();
+  }, []);
 
   // Gọi API filter khi appliedFilters thay đổi
   useEffect(() => {
@@ -291,6 +208,7 @@ export default function CategoryDetail() {
         const filterAttributes = prepareFilterAttributes();
         const payload = {
           category,
+          brand,
           attributes: filterAttributes,
         };
 
@@ -331,11 +249,9 @@ export default function CategoryDetail() {
     return attributes;
   };
 
-  async function fetchAllProducts() {
+  async function fetchAllProductsWithBrand() {
       try {
-        const res = await axios.get(`${API}/api/v1/products/category`, {
-          params: { category },
-        });
+        const res = await axios.get(`${API}/api/v1/products/category/${category}/brand/${brand}`);
         setProducts(res.data.data || []);
       } catch (e) {
         setProducts([]);
@@ -368,36 +284,16 @@ export default function CategoryDetail() {
       <main className="container mx-auto px-4 pt-20">
         {/* Breadcrumbs */}
         <div className="text-sm text-gray-500 mb-2">
-          Home / {category}
+          Home / {category} / {brand}
         </div>
 
         {/* Title */}
         <h1 className="text-2xl font-bold mb-4">{category}</h1>
 
         {/* Brands */}
-        {BRANDS[category] && BRANDS[category].length > 0 && (
-          <>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold">Thương hiệu</h3>
-            </div>
-            <div className="flex flex-wrap gap-4 mb-6">
-              {BRANDS[category].map((brand) => (
-                <div 
-                  key={brand.label}
-                  className={`flex flex-col items-center border rounded-lg cursor-pointer transition-all duration-200 p-2 border-gray-300 hover:border-gray-400 hover:shadow-sm`}
-                  onClick={() => navigate(`/category/${encodeURIComponent(category)}/brand/${encodeURIComponent(brand.label)}`)}
-                >
-                  <img
-                    src={brand.imageUrl}
-                    alt={brand.label}
-                    className="w-20 h-8 object-contain"
-                  />
-                  <span className="text-xs text-center mt-1">{brand.label}</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+        <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">{category} {brand}</h3>
+        </div>
 
 
         {filtersForCategory.length > 0 && (
@@ -494,7 +390,7 @@ export default function CategoryDetail() {
                       <button
                         onClick={() => {
                           setFilters({});
-                          fetchAllProducts();
+                          fetchAllProductsWithBrand();
                         }}
                         className="text-blue-600 text-sm"
                       >

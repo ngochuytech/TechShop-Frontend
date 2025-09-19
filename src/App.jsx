@@ -7,6 +7,7 @@ import AuthPage from './pages/AuthPage.jsx'
 import OAuth2Callback from './pages/OAuth2Callback.jsx'
 import HomePage from './pages/HomePage.jsx';
 import CategoryDetail from './pages/CategoryPage.jsx';
+import CategoryBrand from './pages/CategoryBrandPage.jsx'
 
 function App() {
 
@@ -28,6 +29,7 @@ function App() {
 
         <Route path="/home" element={<HomePage />} />
         <Route path="/category" element={<CategoryDetail />} />
+        <Route path="/category/:category/brand/:brand" element={<CategoryBrand />} />
       </Routes>
     </BrowserRouter>
   )
