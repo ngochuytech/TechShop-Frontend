@@ -17,7 +17,6 @@ export default function ProductSection({ title, brands, category }) {
     async function fetchProducts() {
       try {
         const res = await axios.get(`${API}/api/v1/products/category/${category}/brand/${active}`);
-        
         setProducts(res.data.data || []);
         
       } catch (e) {
@@ -83,7 +82,7 @@ export default function ProductSection({ title, brands, category }) {
           overflowX: 'auto',
         }}>
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard key={product.id} product={product} category={category} />
           ))}
         </div>
         {/* Nút mũi tên phải */}

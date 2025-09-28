@@ -59,9 +59,7 @@ const FILTERS_BY_CATEGORY = {
 };
 
 const FILTER_OPTIONS = {
-  Price: [
-
-  ],
+  Price: [],
   GPU_MODEL: [
     { label: "Card OnBoard", key: "Intel" },
     { label: "NVIDIA GeForce Series", key: "NVIDIA" },
@@ -165,7 +163,6 @@ const FILTER_OPTIONS = {
     { label: "Micro không dây", key: "Không dây" },
     { label: "Micro điện thoại", key: "Điện thoại" },
   ],
-
 };
 
 // Ánh xạ key sang nhãn hiển thị
@@ -197,9 +194,7 @@ const BRANDS = {
     { label: "LG", imageUrl: "/assets/brands/LG.webp" },
     { label: "Masstel", imageUrl: "/assets/brands/masstel.webp" }
   ],
-  Desktop: [
-
-  ],
+  Desktop: [],
   "Màn hình": [
     { label: "Asus", imageUrl: "/assets/brands/Asus.webp" },
     { label: "LG", imageUrl: "/assets/brands/LG.webp" },
@@ -274,15 +269,14 @@ export default function CategoryDetail() {
   const [appliedFilters, setAppliedFilters] = useState([]);
   const [sort, setSort] = useState("popular");
   const [products, setProducts] = useState([]);
+  const [originalProducts, setOriginalProducts] = useState([]);
 
   const navigate = useNavigate();
 
-  // Gọi API lấy sản phẩm theo category
   useEffect(() => {
     fetchAllProducts();
   }, [category]);
 
-  // Gọi API filter khi appliedFilters thay đổi
   useEffect(() => {
     const fetchProducts = async () => {
       if (Object.keys(appliedFilters).length === 0) return;
@@ -294,7 +288,6 @@ export default function CategoryDetail() {
           attributes: filterAttributes,
         };
 
-        // Thêm minPrice và maxPrice nếu có filter Price
         if (appliedFilters.Price && appliedFilters.Price.length > 0) {
           const priceRange = appliedFilters.Price[0].split('-');
           payload.min_price = parseInt(priceRange[0]);
@@ -303,23 +296,53 @@ export default function CategoryDetail() {
 
         const response = await axios.post(`${API}/api/v1/products/filters`, payload);
         
-        let sortedProducts = response.data.data || [];
+        const fetchedProducts = response.data.data || [];
+        setOriginalProducts(fetchedProducts);
         
-        if (sort === "priceAsc") {
-          sortedProducts = sortedProducts.sort((a, b) => a.price - b.price);
-        } else if (sort === "priceDesc") {
-          sortedProducts = sortedProducts.sort((a, b) => b.price - a.price);
-        }
-        
+        const sortedProducts = applySorting(fetchedProducts, sort);
         setProducts(sortedProducts);
       } catch (error) {
         console.error("Error fetching products:", error);
         setProducts([]);
+        setOriginalProducts([]);
       }
     };
 
     fetchProducts();
-  }, [category, appliedFilters, sort]);
+  }, [category, appliedFilters]);
+
+  // Xử lý sắp xếp khi sort thay đổi
+  useEffect(() => {
+    const dataToSort = originalProducts.length > 0 ? originalProducts : products;
+    const sortedProducts = applySorting([...dataToSort], sort);
+    setProducts(sortedProducts);
+  }, [sort, originalProducts]);
+
+  // Hàm sắp xếp sản phẩm
+  const applySorting = (productList, sortType) => {
+    switch (sortType) {
+      case "priceAsc":
+        return productList.sort((a, b) => {
+          const priceA = a.priceDiscount || a.price || 0;
+          const priceB = b.priceDiscount || b.price || 0;
+          return priceA - priceB;
+        });
+      case "priceDesc":
+        return productList.sort((a, b) => {
+          const priceA = a.priceDiscount || a.price || 0;
+          const priceB = b.priceDiscount || b.price || 0;
+          return priceB - priceA;
+        });
+      case "popular":
+      default:
+        // Sắp xếp theo độ phổ biến (có thể là rating, views, sales, etc.)
+        return productList.sort((a, b) => {
+          const ratingA = a.rating || 0;
+          const ratingB = b.rating || 0;
+          return ratingB - ratingA;
+        });
+    }
+  };
 
   const prepareFilterAttributes = () => {
     const attributes = {};
@@ -336,9 +359,15 @@ export default function CategoryDetail() {
         const res = await axios.get(`${API}/api/v1/products/category`, {
           params: { category },
         });
-        setProducts(res.data.data || []);
+        const fetchedProducts = res.data.data || [];
+        setOriginalProducts(fetchedProducts); // Lưu dữ liệu gốc
+        
+        // Áp dụng sắp xếp cho lần đầu load
+        const sortedProducts = applySorting(fetchedProducts, sort);
+        setProducts(sortedProducts);
       } catch (e) {
         setProducts([]);
+        setOriginalProducts([]);
       }
   }
 
@@ -398,7 +427,6 @@ export default function CategoryDetail() {
             </div>
           </>
         )}
-
 
         {filtersForCategory.length > 0 && (
           <>
@@ -537,7 +565,7 @@ export default function CategoryDetail() {
             </button>
             <button
               onClick={() => setSort("priceAsc")}
-              className={`flex justify-center items-center gap-2 px-3 rounded-full border text-sm  ${
+              className={`flex justify-center items-center gap-2 px-3 py-1 rounded-full border text-sm ${
                 sort === "priceAsc"
                   ? "bg-blue-600 text-white"
                   : "bg-white hover:bg-gray-100"
@@ -546,12 +574,11 @@ export default function CategoryDetail() {
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75L17.25 9m0 0L21 12.75M17.25 9v12" />
               </svg>
-
               Giá thấp - cao
             </button>
             <button
               onClick={() => setSort("priceDesc")}
-              className={`flex justify-center items-center gap-2 px-3 py-1 rounded-full border text-sm  ${
+              className={`flex justify-center items-center gap-2 px-3 py-1 rounded-full border text-sm ${
                 sort === "priceDesc"
                   ? "bg-blue-600 text-white"
                   : "bg-white hover:bg-gray-100"
@@ -560,7 +587,6 @@ export default function CategoryDetail() {
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0-3.75-3.75M17.25 21 21 17.25" />
               </svg>
-
               Giá cao - thấp
             </button>
           </div>

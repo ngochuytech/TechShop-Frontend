@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { BrowserRouter } from "react-router-dom";
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { ToastContainer } from "react-toastify";
@@ -8,6 +7,7 @@ import OAuth2Callback from './pages/OAuth2Callback.jsx'
 import HomePage from './pages/HomePage.jsx';
 import CategoryDetail from './pages/CategoryPage.jsx';
 import CategoryBrand from './pages/CategoryBrandPage.jsx'
+import ProductDetailPage from './pages/ProductDetailPage';
 
 function App() {
 
@@ -30,6 +30,8 @@ function App() {
         <Route path="/home" element={<HomePage />} />
         <Route path="/category" element={<CategoryDetail />} />
         <Route path="/category/:category/brand/:brand" element={<CategoryBrand />} />
+
+        <Route path="/category/:category/product/:id" element={<ProductDetailPage />} />
       </Routes>
     </BrowserRouter>
   )

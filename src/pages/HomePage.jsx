@@ -1,3 +1,4 @@
+import Footer from "../components/Footer/Footer";
 import Header from "../components/Header/Header";
 import MainContent from "../components/MainContent/MainContent";
 
@@ -11,6 +12,8 @@ export default function HomePage() {
       <div className="flex-1 pt-10">
         <MainContent />
       </div>
+
+      <Footer />
     </div>
   );
 }
