@@ -31,6 +31,9 @@ export default function LoginForm() {
         if (data.id) {
           localStorage.setItem("userId", data.id);
         }
+        if (data.username) {
+          localStorage.setItem("username", data.username);
+        }
 
         window.location.href = "/home";
         } catch (e) {

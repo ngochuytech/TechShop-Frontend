@@ -51,7 +51,7 @@ export default function UserDropdown({ user }) {
         <div className="absolute right-0 mt-2 w-85 bg-white border border-stone-400 rounded-lg shadow-lg z-50">
             <button
                     onClick={() => {
-                    // navigate("/profile");
+                    navigate("/profile");
                     setOpen(false);
                     }}
                     className="w-[90%] text-center mx-auto block my-2 px-4 py-3 border border-blue-500 rounded-md font-medium text-blue-600 hover:bg-blue-50"

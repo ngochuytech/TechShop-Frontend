@@ -5,8 +5,8 @@ import UserDropdown from "./UserDropDown";
 
 function Header() {
   const [user, setUser] = useState(() => {
-    if (sessionStorage.getItem("accessToken")) {
-      return { name: sessionStorage.getItem("username") };
+    if (localStorage.getItem("accessToken")) {
+      return { name: localStorage.getItem("username") };
     }
     return null;
   });

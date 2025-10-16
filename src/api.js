@@ -9,7 +9,7 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = sessionStorage.getItem(ACCESS_TOKEN);
+    const token = localStorage.getItem(ACCESS_TOKEN);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -41,13 +41,13 @@ api.interceptors.response.use(
           }
         );
 
-        sessionStorage.setItem("access_token", data.access_token);
+        localStorage.setItem("access_token", data.access_token);
 
         originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
         return api(originalRequest);
       } catch (refreshError) {
         if (refreshError.response?.data?.code === "invalid_refresh_token") {
-          sessionStorage.removeItem("access_token");
+          localStorage.removeItem("access_token");
           toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
           window.location.href = `${BASE_URL}/users/login`;
         }

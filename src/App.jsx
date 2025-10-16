@@ -8,6 +8,8 @@ import HomePage from './pages/HomePage.jsx';
 import CategoryDetail from './pages/CategoryPage.jsx';
 import CategoryBrand from './pages/CategoryBrandPage.jsx'
 import ProductDetailPage from './pages/ProductDetailPage';
+import AdminPage from './pages/AdminPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
 
 function App() {
 
@@ -32,6 +34,9 @@ function App() {
         <Route path="/category/:category/brand/:brand" element={<CategoryBrand />} />
 
         <Route path="/category/:category/product/:id" element={<ProductDetailPage />} />
+        
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </BrowserRouter>
   )

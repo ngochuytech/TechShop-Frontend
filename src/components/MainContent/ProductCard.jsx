@@ -12,7 +12,7 @@ export default function ProductCard({product, category }) {
     >
       <div className="w-full aspect-[4/3] bg-white rounded-lg flex items-center justify-center mb-1 overflow-hidden">
         <img
-          src={`${API}${product.images[0] || "https://via.placeholder.com/200x150?text=Image"}`}
+          src={`${product.imagePrimary || "https://via.placeholder.com/200x150?text=Image"}`}
           alt={product.name || "Sản phẩm"}
           className="object-contain w-full h-full max-h-32"
         />
