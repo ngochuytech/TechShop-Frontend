@@ -7,8 +7,8 @@ import ProductVariantManagement from "../sections/admin/ProductVariantManagement
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("product-models");
   const [user] = useState(() => {
-    if (localStorage.getItem("accessToken")) {
-      return { name: localStorage.getItem("username") };
+    if (sessionStorage.getItem("accessToken")) {
+      return { name: sessionStorage.getItem("username") };
     }
     return null;
   });

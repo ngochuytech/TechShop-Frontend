@@ -10,6 +10,9 @@ import CategoryBrand from './pages/CategoryBrandPage.jsx'
 import ProductDetailPage from './pages/ProductDetailPage';
 import AdminPage from './pages/AdminPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
+import CartPage from './pages/CartPage.jsx';
+import CheckoutPage from './pages/CheckoutPage.jsx';
+import OrderDetailPage from './pages/OrderDetailPage.jsx';
 
 function App() {
 
@@ -36,6 +39,9 @@ function App() {
         <Route path="/category/:category/product/:id" element={<ProductDetailPage />} />
         
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/orders/:orderId" element={<OrderDetailPage />} />
         <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </BrowserRouter>

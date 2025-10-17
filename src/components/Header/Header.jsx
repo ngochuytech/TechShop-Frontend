@@ -1,15 +1,17 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import CategoryDropDown from "./CategoryDropDown";
 import UserDropdown from "./UserDropDown";
 
 
 function Header() {
   const [user, setUser] = useState(() => {
-    if (localStorage.getItem("accessToken")) {
-      return { name: localStorage.getItem("username") };
+    if (sessionStorage.getItem("accessToken")) {
+      return { name: sessionStorage.getItem("username") };
     }
     return null;
   });
+  const navigate = useNavigate();
 
   return (
     <header className="w-full bg-gradient-to-b from-blue-100 via-purple-100 to-pink-100 shadow-sm fixed top-0 left-0 z-30">
@@ -33,7 +35,10 @@ function Header() {
 
         {/* Giỏ hàng + User */}
         <div className="flex items-center gap-4">
-          <button className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800">
+          <button
+            className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800"
+            onClick={() => navigate("/cart")}
+          >
             Giỏ hàng
           </button>
           <UserDropdown user={user}/>

@@ -22,8 +22,8 @@ export default function OAuth2Callback() {
         // Backend trả về { user, token }
         const { username, token } = res.data.data;
 
-        if (token) localStorage.setItem("accessToken", token);
-        if (username) localStorage.setItem("username", username);
+        if (token) sessionStorage.setItem("accessToken", token);
+        if (username) sessionStorage.setItem("username", username);
         
 
         navigate("/home", { replace: true });

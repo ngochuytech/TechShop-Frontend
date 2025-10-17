@@ -26,13 +26,13 @@ export default function LoginForm() {
         const data = result.data;
 
         if (data.token) {
-          localStorage.setItem("accessToken", data.token);
+          sessionStorage.setItem("accessToken", data.token);
         }
         if (data.id) {
-          localStorage.setItem("userId", data.id);
+          sessionStorage.setItem("userId", data.id);
         }
         if (data.username) {
-          localStorage.setItem("username", data.username);
+          sessionStorage.setItem("username", data.username);
         }
 
         window.location.href = "/home";

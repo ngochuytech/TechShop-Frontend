@@ -49,15 +49,29 @@ export default function UserDropdown({ user }) {
       {/* Dropdown menu */}
       {open && (
         <div className="absolute right-0 mt-2 w-85 bg-white border border-stone-400 rounded-lg shadow-lg z-50">
-            <button
-                    onClick={() => {
-                    navigate("/profile");
-                    setOpen(false);
-                    }}
-                    className="w-[90%] text-center mx-auto block my-2 px-4 py-3 border border-blue-500 rounded-md font-medium text-blue-600 hover:bg-blue-50"
-            >
-                Trang cá nhân
-            </button>
+          <button
+            onClick={() => {
+              navigate("/profile");
+              setOpen(false);
+            }}
+            className="w-[90%] text-center mx-auto block my-2 px-4 py-3 border border-blue-500 rounded-md font-medium text-blue-600 hover:bg-blue-50"
+          >
+            Trang cá nhân
+          </button>
+
+          <button
+            onClick={() => {
+              // Xóa token khỏi localStorage
+              localStorage.removeItem("token");
+              // Có thể xóa thêm refreshToken nếu có
+              localStorage.removeItem("refreshToken");
+              setOpen(false);
+              navigate("/auth");
+            }}
+            className="w-[90%] text-center mx-auto block my-2 px-4 py-3 border border-red-500 rounded-md font-medium text-red-600 hover:bg-red-50"
+          >
+            Đăng xuất
+          </button>
 
           <div className="px-4 py-2 border-b flex justify-between items-center">
             <span className="font-medium">Thông báo</span>

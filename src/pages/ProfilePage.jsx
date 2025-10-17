@@ -3,6 +3,11 @@ import Header from "../components/Header/Header";
 import Footer from "../components/Footer/Footer";
 import { toast } from "react-toastify";
 import api from "../api";
+import ProfileInfo from "../components/Profile/ProfileInfo";
+import ProfileOrders from "../components/Profile/ProfileOrders";
+import ProfileFavorites from "../components/Profile/ProfileFavorites";
+import ProfileSettings from "../components/Profile/ProfileSettings";
+
 const API = import.meta.env.VITE_API_URL;
 
 export default function ProfilePage() {
@@ -15,6 +20,15 @@ export default function ProfilePage() {
     avatar: "https://ui-avatars.com/api/?name=User"
   });
 
+  const [address, setAddress] = useState(null);
+  const [addressForm, setAddressForm] = useState({
+    province: "",
+    ward: "",
+    homeAddress: "",
+    suggestedName: ""
+  });
+  const [showAddressForm, setShowAddressForm] = useState(false);
+
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -22,41 +36,20 @@ export default function ProfilePage() {
     dateOfBirth: "",
   });
 
-  const [orders] = useState([
-    {
-      id: "ORD001",
-      date: "15/10/2025",
-      status: "Đang giao",
-      total: 29990000,
-      items: [
-        { name: "iPhone 15 Pro Max 256GB", price: 29990000, quantity: 1 }
-      ]
-    },
-    {
-      id: "ORD002",
-      date: "10/10/2025",
-      status: "Đã giao",
-      total: 15990000,
-      items: [
-        { name: "AirPods Pro 2", price: 5990000, quantity: 1 },
-        { name: "Apple Watch Series 9", price: 9990000, quantity: 1 }
-      ]
-    }
-  ]);
+  const [orders, setOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const response = await api.get(`${API}/api/v1/users/profile`);
         const profile = response.data.data;
-        console.log("profile = ", profile);
-        
         setUser({
           fullName: profile.fullName || "User",
           email: profile.email || "user@example.com",
           phone: profile.phone || "",
           dateOfBirth: profile.dateOfBirth || "",
-          avatar: profile.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || "User")}`,
+          avatar: profile.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || "User")}`,
         });
         setFormData({
           fullName: profile.fullName || "",
@@ -64,12 +57,63 @@ export default function ProfilePage() {
           phone: profile.phone || "",
           dateOfBirth: profile.dateOfBirth || "",
         });
+        if(profile.address != null){
+          setAddress({
+            province: profile.address?.province || "",
+            ward: profile.address?.ward || "",
+            homeAddress: profile.address?.homeAddress || "",
+            suggestedName: profile.address?.suggestedName || ""
+          });
+          setAddressForm({
+            province: profile.address?.province || "",
+            ward: profile.address?.ward || "",
+            homeAddress: profile.address?.homeAddress || "",
+            suggestedName: profile.address?.suggestedName || ""
+          });
+        }
       } catch (error) {
         console.error("Error fetching user profile:", error);
       }
     };
+
+    const fetchOrders = async () => {
+      setLoadingOrders(true);
+      try {
+        const response = await api.get(`${API}/api/v1/orders/user`);
+        let ordersData = [];
+        if (Array.isArray(response.data)) {
+          ordersData = response.data;
+        } else if (Array.isArray(response.data.data)) {
+          ordersData = response.data.data;
+        }
+        
+        console.log("Processed ordersData:", ordersData);
+        
+        setOrders(ordersData.map(order => ({
+          id: order.id,
+          date: order.createdAt ? new Date(order.createdAt).toLocaleDateString('vi-VN') : '',
+          status: order.status,
+          total: order.totalPrice,
+          items: Array.isArray(order.items)
+            ? order.items.map(item => ({
+                name: item.productName,
+                price: item.price,
+                quantity: item.quantity
+              }))
+            : []
+        })));
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        setOrders([]);
+      } finally {
+        setLoadingOrders(false);
+      }
+    };
+
     fetchProfile();
+    fetchOrders();
   }, []);
+  
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -79,17 +123,51 @@ export default function ProfilePage() {
     }));
   };
 
+  const [showEditForm, setShowEditForm] = useState(false);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const updateProfile = async () => {
-        try {
-            const response = await api.put(`${API}/api/v1/users/update-profile`, formData);
-            toast.success("Cập nhật thông tin thành công!");
-        } catch (error) {
-            toast.error("Cập nhật thông tin thất bại!");
-        }
-    }
+      try {
+        const response = await api.put(`${API}/api/v1/users/update-profile`, formData);
+        toast.success("Cập nhật thông tin thành công!");
+        setShowEditForm(false);
+      } catch (error) {
+        toast.error("Cập nhật thông tin thất bại!");
+      }
+    };
     updateProfile();
+  };
+
+  function updateUserAddress(addressData) {
+    return api.put(`${API}/api/v1/users/update-address-user`, addressData);
+  }
+
+  // ...existing code...
+
+  // Trong component ProfilePage
+  const handleAddressChange = (e) => {
+    const { name, value } = e.target;
+    setAddressForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleAddressSubmit = async (e) => {
+    e.preventDefault();
+    if (!addressForm.ward || !addressForm.province || !addressForm.homeAddress) {
+      toast.error("Vui lòng nhập đầy đủ Phường, Thành phố và Địa chỉ nhà!");
+      return;
+    }
+    try {
+      await updateUserAddress(addressForm);
+      toast.success("Cập nhật địa chỉ thành công!");
+      setAddress({ ...addressForm });
+      setShowAddressForm(false);
+    } catch (error) {
+      toast.error("Cập nhật địa chỉ thất bại!");
+    }
   };
 
   const getStatusColor = (status) => {
@@ -114,15 +192,64 @@ export default function ProfilePage() {
           {/* Profile Header */}
           <div className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-2xl p-[2px] mb-8 shadow-lg">
             <div className="bg-white/90 rounded-2xl p-8">
-              <div className="flex items-center gap-6">
-                <img
-                  src={user.avatar}
-                  alt={user.fullName}
-                  className="w-24 h-24 rounded-full border-4 border-white shadow-lg"
-                />
-                <div>
-                  <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">{user.fullName}</h1>
-                  <p className="text-gray-700">{user.email}</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                  <img
+                    src={user.avatar}
+                    alt={user.fullName}
+                    className="w-24 h-24 rounded-full border-4 border-red-600 shadow-lg"
+                  />
+                  <div>
+                    <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                      {user.fullName}
+                    </h1>
+                    <p className="text-gray-700 mb-1">{user.email}</p>
+                    <p className="text-gray-600 text-sm">
+                      📞 {user.phone || "Chưa cập nhật số điện thoại"}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Stats Section */}
+                <div className="hidden md:flex gap-8">
+                  <div className="text-center border-l border-gray-300 pl-8">
+                    <div className="text-3xl font-bold text-blue-600">
+                      {orders.length}
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">Đơn hàng</div>
+                  </div>
+                  <div className="text-center border-l border-gray-300 pl-8">
+                    <div className="text-3xl font-bold text-purple-600">
+                      {address ? "1" : "0"}
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">Địa chỉ</div>
+                  </div>
+                  <div className="text-center border-l border-gray-300 pl-8">
+                    <div className="text-3xl font-bold text-pink-600">0</div>
+                    <div className="text-sm text-gray-600 mt-1">Yêu thích</div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Mobile Stats */}
+              <div className="md:hidden mt-6 pt-6 border-t border-gray-200">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {orders.length}
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1">Đơn hàng</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {address ? "1" : "0"}
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1">Địa chỉ</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-pink-600">0</div>
+                    <div className="text-xs text-gray-600 mt-1">Yêu thích</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -184,212 +311,28 @@ export default function ProfilePage() {
             {/* Main Content */}
             <div className="lg:col-span-3">
               {activeTab === "info" && (
-                <div className="bg-white rounded-xl shadow-lg p-8">
-                  <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    Thông tin cá nhân
-                  </h2>
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Họ và tên
-                        </label>
-                        <input
-                          type="text"
-                          name="name"
-                          value={formData.fullName}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                          placeholder="Nhập họ và tên"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Email
-                        </label>
-                        <input
-                          type="email"
-                          name="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                          placeholder="Nhập email"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Số điện thoại
-                        </label>
-                        <input
-                          type="tel"
-                          name="phone"
-                          value={formData.phone}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                          placeholder="Nhập số điện thoại"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Ngày sinh
-                        </label>
-                        <input
-                          type="date"
-                          name="dateOfBirth"
-                          value={formData.dateOfBirth}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-end">
-                      <button
-                        type="submit"
-                        className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all hover:from-blue-600 hover:to-purple-600"
-                      >
-                        Cập nhật thông tin
-                      </button>
-                    </div>
-                  </form>
-                </div>
+                <ProfileInfo
+                  address={address}
+                  addressForm={addressForm}
+                  handleAddressChange={handleAddressChange}
+                  handleAddressSubmit={handleAddressSubmit}
+                  showAddressForm={showAddressForm}
+                  setShowAddressForm={setShowAddressForm}
+                  formData={formData}
+                  handleChange={handleChange}
+                  handleSubmit={handleSubmit}
+                  showEditForm={showEditForm}
+                  setShowEditForm={setShowEditForm}
+                />
               )}
-
               {activeTab === "orders" && (
-                <div className="bg-white rounded-xl shadow-lg p-8">
-                  <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    Đơn hàng của tôi
-                  </h2>
-                  {orders.length === 0 ? (
-                    <div className="text-center py-12">
-                      <p className="text-gray-500 text-lg">Chưa có đơn hàng nào</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {orders.map((order) => (
-                        <div
-                          key={order.id}
-                          className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-all"
-                        >
-                          <div className="flex justify-between items-start mb-4">
-                            <div>
-                              <h3 className="font-bold text-lg text-gray-800">
-                                Mã đơn hàng: {order.id}
-                              </h3>
-                              <p className="text-sm text-gray-600">
-                                Ngày đặt: {order.date}
-                              </p>
-                            </div>
-                            <span
-                              className={`px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(
-                                order.status
-                              )}`}
-                            >
-                              {order.status}
-                            </span>
-                          </div>
-                          <div className="space-y-2 mb-4">
-                            {order.items.map((item, idx) => (
-                              <div
-                                key={idx}
-                                className="flex justify-between text-sm"
-                              >
-                                <span className="text-gray-700">
-                                  {item.name} x{item.quantity}
-                                </span>
-                                <span className="font-semibold text-gray-800">
-                                  {item.price.toLocaleString("vi-VN")}₫
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="border-t pt-4 flex justify-between items-center">
-                            <span className="text-gray-700 font-semibold">
-                              Tổng cộng:
-                            </span>
-                            <span className="text-xl font-bold text-blue-600">
-                              {order.total.toLocaleString("vi-VN")}₫
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <ProfileOrders orders={orders} getStatusColor={getStatusColor} loading={loadingOrders} />
               )}
-
               {activeTab === "favorites" && (
-                <div className="bg-white rounded-xl shadow-lg p-8">
-                  <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    Sản phẩm yêu thích
-                  </h2>
-                  <div className="text-center py-12">
-                    <p className="text-gray-500 text-lg">
-                      Chưa có sản phẩm yêu thích
-                    </p>
-                  </div>
-                </div>
+                <ProfileFavorites />
               )}
-
               {activeTab === "settings" && (
-                <div className="bg-white rounded-xl shadow-lg p-8">
-                  <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    Cài đặt tài khoản
-                  </h2>
-                  <div className="space-y-6">
-                    <div className="border-b pb-6">
-                      <h3 className="font-semibold text-lg mb-4">
-                        Đổi mật khẩu
-                      </h3>
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Mật khẩu hiện tại
-                          </label>
-                          <input
-                            type="password"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                            placeholder="Nhập mật khẩu hiện tại"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Mật khẩu mới
-                          </label>
-                          <input
-                            type="password"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                            placeholder="Nhập mật khẩu mới"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Xác nhận mật khẩu mới
-                          </label>
-                          <input
-                            type="password"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                            placeholder="Nhập lại mật khẩu mới"
-                          />
-                        </div>
-                        <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all">
-                          Đổi mật khẩu
-                        </button>
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg mb-4 text-red-600">
-                        Xóa tài khoản
-                      </h3>
-                      <p className="text-gray-600 mb-4">
-                        Xóa tài khoản sẽ xóa vĩnh viễn tất cả dữ liệu của bạn.
-                        Hành động này không thể hoàn tác.
-                      </p>
-                      <button className="px-6 py-3 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-all">
-                        Xóa tài khoản
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <ProfileSettings />
               )}
             </div>
           </div>

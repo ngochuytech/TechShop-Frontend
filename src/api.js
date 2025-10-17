@@ -1,4 +1,5 @@
 import axios from "axios";
+import { toast } from 'react-toastify';
 import { ACCESS_TOKEN } from "./constants.js";
 
 const BASE_URL = import.meta.env.VITE_API_URL;
@@ -9,7 +10,7 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem(ACCESS_TOKEN);
+    const token = sessionStorage.getItem(ACCESS_TOKEN);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -25,34 +26,38 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      error.response?.data?.code !== "invalid_refresh_token"
-    ) {
-      originalRequest._retry = true;
+    const isRefreshEndpoint = originalRequest?.url?.includes('/refresh-token');
 
-      try {
-        const { data } = await axios.post(
-          `${BASE_URL}/users/refresh-token`,
-          {},
-          {
-            withCredentials: true,
+    if (error.response?.status === 401 && !isRefreshEndpoint) {
+      if (!originalRequest._retry) {
+        originalRequest._retry = true;
+        try {
+          const { data } = await axios.post(
+            `${BASE_URL}/api/v1/users/refresh-token`,
+            {},
+            {
+              withCredentials: true,
+            }
+          );
+
+          const newToken = data?.token || data?.access_token;
+          if (newToken) {
+            sessionStorage.setItem(ACCESS_TOKEN, newToken);
+            originalRequest.headers = originalRequest.headers || {};
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            return api(originalRequest);
           }
-        );
-
-        localStorage.setItem("access_token", data.access_token);
-
-        originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
-        return api(originalRequest);
-      } catch (refreshError) {
-        if (refreshError.response?.data?.code === "invalid_refresh_token") {
-          localStorage.removeItem("access_token");
-          toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-          window.location.href = `${BASE_URL}/users/login`;
+        } catch (refreshError) {
+          sessionStorage.removeItem(ACCESS_TOKEN);
+          toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+          window.location.href = `/auth`;
+          return Promise.reject(refreshError);
         }
-        return Promise.reject(refreshError);
       }
+      sessionStorage.removeItem(ACCESS_TOKEN);
+      toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      window.location.href = `/auth`;
+      return Promise.reject(error);
     }
 
     return Promise.reject(error);
