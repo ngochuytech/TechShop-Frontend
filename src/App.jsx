@@ -1,7 +1,9 @@
 import { BrowserRouter } from "react-router-dom";
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { useNavigate, Navigate, Route, Routes } from 'react-router-dom'
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useEffect } from 'react';
+import { setNavigate } from './api';
 import AuthPage from './pages/AuthPage.jsx'
 import OAuth2Callback from './pages/OAuth2Callback.jsx'
 import HomePage from './pages/HomePage.jsx';
@@ -14,19 +16,26 @@ import CartPage from './pages/CartPage.jsx';
 import CheckoutPage from './pages/CheckoutPage.jsx';
 import OrderDetailPage from './pages/OrderDetailPage.jsx';
 
-function App() {
+// Component wrapper để sử dụng useNavigate
+function AppRoutes() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Set navigate function vào api interceptor
+    setNavigate(navigate);
+  }, [navigate]);
 
   return (
-    <BrowserRouter>
+    <>
       <ToastContainer
-            position="top-right"
-            autoClose={7000}
-            hideProgressBar={false}
-            closeOnClick
-            pauseOnHover
-            draggable
-            theme="light"
-        />
+        position="top-right"
+        autoClose={7000}
+        hideProgressBar={false}
+        closeOnClick
+        pauseOnHover
+        draggable
+        theme="light"
+      />
       <Routes>
         <Route path="/" element={<Navigate to="/auth" replace />} />
         <Route path="/auth" element={<AuthPage />} />
@@ -44,6 +53,14 @@ function App() {
         <Route path="/orders/:orderId" element={<OrderDetailPage />} />
         <Route path="/admin" element={<AdminPage />} />
       </Routes>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
     </BrowserRouter>
   )
 }

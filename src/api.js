@@ -4,6 +4,16 @@ import { ACCESS_TOKEN } from "./constants.js";
 
 const BASE_URL = import.meta.env.VITE_API_URL;
 
+// Tạo biến global để lưu navigate function
+let navigateFunction = null;
+
+export const setNavigate = (navigate) => {
+  navigateFunction = navigate;
+};
+
+// Biến để lưu promise refresh token đang thực hiện
+let refreshTokenPromise = null;
+
 const api = axios.create({
   baseURL: BASE_URL,
 });
@@ -31,33 +41,60 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !isRefreshEndpoint) {
       if (!originalRequest._retry) {
         originalRequest._retry = true;
-        try {
-          const { data } = await axios.post(
+        
+        // Nếu đã có promise refresh token đang chạy, chờ nó hoàn thành
+        if (!refreshTokenPromise) {
+          refreshTokenPromise = axios.post(
             `${BASE_URL}/api/v1/users/refresh-token`,
             {},
             {
               withCredentials: true,
             }
-          );
+          )
+          .then((response) => {
+            const newToken = response.data?.token || response.data?.access_token;
+            if (newToken) {
+              sessionStorage.setItem(ACCESS_TOKEN, newToken);
+            }
+            return newToken;
+          })
+          .catch((refreshError) => {
+            sessionStorage.removeItem(ACCESS_TOKEN);
+            toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+            if (navigateFunction) {
+              setTimeout(() => navigateFunction('/auth'), 2000);
+            } else {
+              setTimeout(() => window.location.href = `/auth`, 2000);
+            }
+            throw refreshError;
+          })
+          .finally(() => {
+            // Reset promise sau khi hoàn thành (thành công hoặc thất bại)
+            refreshTokenPromise = null;
+          });
+        }
 
-          const newToken = data?.token || data?.access_token;
+        try {
+          const newToken = await refreshTokenPromise;
           if (newToken) {
-            sessionStorage.setItem(ACCESS_TOKEN, newToken);
             originalRequest.headers = originalRequest.headers || {};
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
             return api(originalRequest);
           }
         } catch (refreshError) {
-          sessionStorage.removeItem(ACCESS_TOKEN);
-          toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-          window.location.href = `/auth`;
           return Promise.reject(refreshError);
         }
+      } else {
+        // Nếu đã retry rồi mà vẫn lỗi 401, xóa token và redirect
+        sessionStorage.removeItem(ACCESS_TOKEN);
+        toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        if (navigateFunction) {
+          setTimeout(() => navigateFunction('/auth'), 2000);
+        } else {
+          setTimeout(() => window.location.href = `/auth`, 2000);
+        }
+        return Promise.reject(error);
       }
-      sessionStorage.removeItem(ACCESS_TOKEN);
-      toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-      window.location.href = `/auth`;
-      return Promise.reject(error);
     }
 
     return Promise.reject(error);

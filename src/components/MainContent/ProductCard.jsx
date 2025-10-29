@@ -39,7 +39,7 @@ export default function ProductCard({product, category }) {
       <p className="text-gray-400 text-xs text-center">{product.promotion || "Khuyến mãi hấp dẫn"}</p>
       <div className="flex-1 flex items-end">
         <div className="flex w-full justify-between text-xs mt-2">
-          <span className="border border-yellow-200 px-3 py-2 min-h-[36px] rounded bg-yellow-50 text-yellow-400 flex items-center font-semibold text-base">
+          <span className="px-3 py-2 min-h-[36px] rounded text-yellow-400 flex items-center font-semibold text-base">
             {product.rating ? product.rating + "★" : "4.5★"}
           </span>
           <span className="border border-pink-200 px-4 py-2 min-h-[36px] rounded bg-pink-50 text-pink-500 flex items-center font-semibold text-base">

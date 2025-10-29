@@ -413,15 +413,14 @@ export default function CategoryDetail() {
               {BRANDS[category].map((brand) => (
                 <div 
                   key={brand.label}
-                  className={`flex flex-col items-center border rounded-lg cursor-pointer transition-all duration-200 p-2 border-gray-300 hover:border-gray-400 hover:shadow-sm`}
+                  className={`items-center border rounded-lg cursor-pointer transition-all duration-200 bg-white border-gray-300 hover:border-gray-400 hover:shadow-sm`}
                   onClick={() => navigate(`/category/${encodeURIComponent(category)}/brand/${encodeURIComponent(brand.label)}`)}
                 >
                   <img
                     src={brand.imageUrl}
                     alt={brand.label}
-                    className="w-20 h-8 object-contain"
+                    className="w-28 h-12 object-contain"
                   />
-                  <span className="text-xs text-center mt-1">{brand.label}</span>
                 </div>
               ))}
             </div>
@@ -593,7 +592,7 @@ export default function CategoryDetail() {
         </div>
 
         {/* Products */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5">
           {products.map((product) => (
             <ProductCard key={product._id || product.id} product={product} />
           ))}
