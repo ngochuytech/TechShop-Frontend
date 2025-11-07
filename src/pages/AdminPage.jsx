@@ -1,11 +1,14 @@
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import AdminSidebar from "../components/Admin/AdminSidebar";
 import ProductModelManagement from "../sections/admin/ProductModelManagement";
 import ProductManagement from "../sections/admin/ProductManagement";
 import ProductVariantManagement from "../sections/admin/ProductVariantManagement";
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState("product-models");
+  const location = useLocation();
+  const initialTab = location.state?.activeTab || "dashboard";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [user] = useState(() => {
     if (sessionStorage.getItem("accessToken")) {
       return { name: sessionStorage.getItem("username") };
@@ -55,7 +58,7 @@ export default function AdminPage() {
         <div className="container mx-auto flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
             <a href="/admin" className="text-white font-bold text-2xl">
-              🛠️ Admin Panel
+              Trang Quản Trị
             </a>
           </div>
 

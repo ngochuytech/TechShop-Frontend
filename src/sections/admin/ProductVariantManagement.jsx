@@ -25,7 +25,7 @@ export default function ProductVariantManagement() {
     try {
       setLoading(true);
       // Fetch products
-      const productsRes = await api.get("/products/category?category=laptop");
+      const productsRes = await api.get("/api/v1/products/category?category=laptop");
       const productsData = productsRes.data.data || productsRes.data;
       setProducts(Array.isArray(productsData) ? productsData : []);
       
@@ -43,7 +43,7 @@ export default function ProductVariantManagement() {
 
   const fetchVariants = async (productId) => {
     try {
-      const response = await api.get(`/product-variants/product/${productId}`);
+      const response = await api.get(`/api/v1/product-variants/product/${productId}`);
       const data = response.data.data || response.data;
       setVariants(Array.isArray(data) ? data : []);
       setSelectedProductId(productId);
@@ -89,7 +89,7 @@ export default function ProductVariantManagement() {
           stock: parseInt(formData.stock),
           price: formData.price ? parseInt(formData.price) : 0,
         };
-        await api.put(`/product-variants/${editingVariant.id}`, updateData);
+        await api.put(`/api/v1/product-variants/${editingVariant.id}`, updateData);
         toast.success("Cập nhật Product Variant thành công!");
       } else {
         const formDataToSend = new FormData();
@@ -110,7 +110,7 @@ export default function ProductVariantManagement() {
           formDataToSend.append("image", image);
         }
 
-        await api.post("/product-variants/create", formDataToSend, {
+        await api.post("/api/v1/product-variants/create", formDataToSend, {
           headers: {
             "Content-Type": "multipart/form-data",
           },
@@ -153,7 +153,7 @@ export default function ProductVariantManagement() {
     }
 
     try {
-      await api.delete(`/product-variants/${id}`);
+      await api.delete(`/api/v1/product-variants/${id}`);
       toast.success("Xóa Product Variant thành công!");
       if (selectedProductId) {
         fetchVariants(selectedProductId);

@@ -1,5 +1,5 @@
 import { useState } from "react";
-
+import axios from "axios";
 const API = import.meta.env.VITE_API_URL;
 
 export default function LoginForm() {
@@ -12,37 +12,37 @@ export default function LoginForm() {
     setErr("");
     setLoading(true);
     try {
-        const res = await fetch(`${API}/api/v1/users/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        });
+      const res = await axios.post(`${API}/api/v1/users/login`, {
+        email: form.email,
+        password: form.password
+      }, {
+        withCredentials: true
+      });
 
-        const result = await res.json();
-        if (!result.success) {
-          throw new Error(result.error || "Đăng nhập thất bại");
-        }
-        console.log("Login successful:", result.data);
-        const data = result.data;
+      const result = res.data; 
+      if (!result.success) {
+        throw new Error(result.error || "Đăng nhập thất bại");
+      }
+      const data = result.data;
 
-        if (data.token) {
-          sessionStorage.setItem("accessToken", data.token);
-        }
-        if (data.id) {
-          sessionStorage.setItem("userId", data.id);
-        }
-        if (data.username) {
-          sessionStorage.setItem("username", data.username);
-        }
+      if (data.token) {
+        sessionStorage.setItem("accessToken", data.token);
+      }
+      if (data.id) {
+        sessionStorage.setItem("userId", data.id);
+      }
+      if (data.username) {
+        sessionStorage.setItem("username", data.username);
+      }
 
-        window.location.href = "/home";
-        } catch (e) {
-          console.error("Login error:", e);
-            setErr(e.message || "Có lỗi xảy ra");
-        } finally {
-            setLoading(false);
-        }
+      window.location.href = "/home";
+    } catch (e) {
+      console.error("Login error:", e);
+      setErr(e.response.data.error || "Có lỗi xảy ra");
+    } finally {
+      setLoading(false);
     }
+  }
 
 
   return (

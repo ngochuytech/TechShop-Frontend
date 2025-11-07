@@ -19,9 +19,24 @@ export default function ProductModelManagement() {
     brand_id: "",
   });
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterBrand, setFilterBrand] = useState("");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortDir, setSortDir] = useState("desc");
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchProductModels();
+  }, [currentPage, pageSize, sortBy, sortDir, searchQuery, filterCategory, filterBrand]);
 
   const fetchData = async () => {
     try {
@@ -32,7 +47,6 @@ export default function ProductModelManagement() {
       ]);
       setCategories(categoriesRes.data.data || categoriesRes.data);
       setBrands(brandsRes.data.data || brandsRes.data);
-      await fetchProductModels();
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Có lỗi khi tải dữ liệu");
@@ -43,12 +57,43 @@ export default function ProductModelManagement() {
 
   const fetchProductModels = async () => {
     try {
-      const response = await axios.get(`${API}/api/v1/product-models`);
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        size: pageSize.toString(),
+        sortBy: sortBy,
+        sortDir: sortDir,
+      });
 
-      setProductModels(response.data.data || response.data);
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery.trim());
+      }
+      if (filterCategory) {
+        params.append('categoryId', filterCategory);
+      }
+      if (filterBrand) {
+        params.append('brandId', filterBrand);
+      }
+
+      const response = await axios.get(`${API}/api/v1/admin/product-models?${params.toString()}`);
+      const data = response.data.data || response.data;
+
+      if (data.content) {
+        setProductModels(data.content);
+        setTotalPages(data.totalPages || 0);
+        setTotalElements(data.totalElements || 0);
+      } else {
+        setProductModels(Array.isArray(data) ? data : []);
+        setTotalPages(1);
+        setTotalElements(Array.isArray(data) ? data.length : 0);
+      }
     } catch (error) {
       console.error("Error fetching product models:", error);
       setProductModels([]);
+      setTotalPages(0);
+      setTotalElements(0);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -70,10 +115,10 @@ export default function ProductModelManagement() {
 
     try {
       if (editingModel) {
-        await axios.put(`${API}/api/v1/product-models/update/${editingModel.id}`, formData);
+        await axios.put(`${API}/api/v1/admin/product-models/update/${editingModel.id}`, formData);
         toast.success("Cập nhật Product Model thành công!");
       } else {
-        await axios.post(`${API}/api/v1/product-models/create`, formData);
+        await axios.post(`${API}/api/v1/admin/product-models/create`, formData);
         toast.success("Thêm Product Model thành công!");
       }
 
@@ -109,7 +154,7 @@ export default function ProductModelManagement() {
     }
 
     try {
-      await api.delete(`/product-models/delete/${id}`);
+      await api.delete(`/product-models/admin/delete/${id}`);
       toast.success("Xóa Product Model thành công!");
       fetchProductModels();
     } catch (error) {
@@ -129,6 +174,56 @@ export default function ProductModelManagement() {
     });
   };
 
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    setSearchInput("");
+    setFilterCategory("");
+    setFilterBrand("");
+    setSortBy("createdAt");
+    setSortDir("desc");
+    setCurrentPage(0);
+  };
+
+  const handleSortChange = (value) => {
+    setCurrentPage(0);
+    switch (value) {
+      case "newest":
+        setSortBy("createdAt");
+        setSortDir("desc");
+        break;
+      case "oldest":
+        setSortBy("createdAt");
+        setSortDir("asc");
+        break;
+      case "name-asc":
+        setSortBy("name");
+        setSortDir("asc");
+        break;
+      case "name-desc":
+        setSortBy("name");
+        setSortDir("desc");
+        break;
+      default:
+        setSortBy("createdAt");
+        setSortDir("desc");
+    }
+  };
+
+  const handleSearchClick = () => {
+    setSearchQuery(searchInput);
+    setCurrentPage(0);
+  };
+
+  const handleCategoryFilterChange = (e) => {
+    setFilterCategory(e.target.value);
+    setCurrentPage(0);
+  };
+
+  const handleBrandFilterChange = (e) => {
+    setFilterBrand(e.target.value);
+    setCurrentPage(0);
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-lg p-8">
@@ -143,7 +238,7 @@ export default function ProductModelManagement() {
     <div className="bg-white rounded-xl shadow-lg p-8">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          Quản lý Product Models
+          Quản lý model sản phẩm
         </h2>
         <button
           onClick={() => setShowForm(!showForm)}
@@ -151,6 +246,105 @@ export default function ProductModelManagement() {
         >
           {showForm ? "Đóng Form" : "➕ Thêm Product Model"}
         </button>
+      </div>
+
+      {/* Search and Filter Section */}
+      <div className="mb-6 space-y-4">
+        {/* Search Bar */}
+        <div className="flex gap-4 items-center">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="🔍 Tìm kiếm theo tên model sản phẩm"
+              className="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+          <button
+            onClick={handleSearchClick}
+            className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all whitespace-nowrap"
+          >
+            Tìm kiếm
+          </button>
+          {(searchQuery || filterCategory || filterBrand || sortBy !== "createdAt" || sortDir !== "desc") && (
+            <button
+              onClick={handleClearFilters}
+              className="px-4 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-all whitespace-nowrap"
+            >
+              🗑️ Xóa bộ lọc
+            </button>
+          )}
+        </div>
+
+        {/* Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Lọc theo danh mục
+            </label>
+            <select
+              value={filterCategory}
+              onChange={handleCategoryFilterChange}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Tất cả danh mục</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Lọc theo thương hiệu
+            </label>
+            <select
+              value={filterBrand}
+              onChange={handleBrandFilterChange}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Tất cả thương hiệu</option>
+              {brands.map((brand) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Sắp xếp theo
+            </label>
+            <select
+              value={`${sortBy === "createdAt" ? (sortDir === "desc" ? "newest" : "oldest") : (sortDir === "asc" ? "name-asc" : "name-desc")}`}
+              onChange={(e) => handleSortChange(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="newest">Mới nhất</option>
+              <option value="oldest">Cũ nhất</option>
+              <option value="name-asc">Tên A-Z</option>
+              <option value="name-desc">Tên Z-A</option>
+            </select>
+          </div>
+        </div>
+
       </div>
 
       {showForm && (
@@ -252,23 +446,28 @@ export default function ProductModelManagement() {
       {/* Product Models List */}
       {productModels.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">Chưa có Product Model nào</p>
+          <p className="text-gray-500 text-lg">
+            {searchQuery || filterCategory || filterBrand 
+              ? "Không tìm thấy Product Model nào phù hợp với bộ lọc" 
+              : "Chưa có Product Model nào"}
+          </p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b-2 border-gray-200">
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">ID</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Tên</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Danh mục</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Thương hiệu</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Mô tả</th>
-                <th className="text-center py-3 px-4 font-semibold text-gray-700">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {productModels.map((model) => (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b-2 border-gray-200">
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">ID</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Tên</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Danh mục</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Thương hiệu</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Mô tả</th>
+                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {productModels.map((model) => (
                 <tr key={model.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4">
                     <span className="font-medium text-gray-600">#{model.id}</span>
@@ -312,6 +511,82 @@ export default function ProductModelManagement() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination - Always show if there are items */}
+        {productModels.length > 0 && (
+          <div className="mt-6 flex flex-col gap-3">
+            {/* Page info */}
+            <div className="text-center text-sm text-gray-600">
+              Trang {currentPage + 1} / {totalPages > 0 ? totalPages : 1}
+            </div>
+            
+            {/* Pagination controls */}
+            <div className="flex justify-center items-center gap-2 flex-wrap">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                disabled={currentPage === 0}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ← Trước
+              </button>
+              
+              <div className="flex gap-1 flex-wrap">
+                {totalPages > 0 && [...Array(totalPages)].map((_, index) => {
+                  // Show first page, last page, current page, and pages around current
+                  if (
+                    index === 0 ||
+                    index === totalPages - 1 ||
+                    (index >= currentPage - 1 && index <= currentPage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentPage(index)}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                          currentPage === index
+                            ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {index + 1}
+                      </button>
+                    );
+                  } else if (index === currentPage - 2 || index === currentPage + 2) {
+                    return <span key={index} className="px-2 py-2">...</span>;
+                  }
+                  return null;
+                })}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                disabled={currentPage >= totalPages - 1}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Sau →
+              </button>
+            </div>
+
+            {/* Page size selector */}
+            <div className="flex justify-center items-center gap-2 text-sm">
+              <span className="text-gray-600">Số item mỗi trang:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(0);
+                }}
+                className="px-3 py-1 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+        )}
+      </>
       )}
     </div>
   );

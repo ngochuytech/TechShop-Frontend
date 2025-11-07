@@ -4,6 +4,7 @@ import Header from "../components/Header/Header";
 import ProductCard from "../components/MainContent/ProductCard";
 import DualRangePriceSlider from "../components/DualRangePriceSlider";
 import axios from "axios";
+import Footer from "../components/Footer/Footer";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -463,12 +464,13 @@ export default function CategoryDetail() {
         </div>
 
         {/* Products */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5">
           {products.map((product) => (
-            <ProductCard key={product._id || product.id} product={product} />
+            <ProductCard key={product._id || product.id} product={product} category={category} />
           ))}
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

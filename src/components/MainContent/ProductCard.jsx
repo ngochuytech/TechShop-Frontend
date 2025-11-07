@@ -1,9 +1,29 @@
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import api from '../../api';
 
 const API = import.meta.env.VITE_API_URL;
 
 export default function ProductCard({product, category }) {
   const navigate = useNavigate();
+  const [isFav, setIsFav] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const checkFav = async () => {
+      if (!product || !product.id) return;
+      try {
+        const res = await api.get(`${API}/api/v1/customer/favourites/product/${product.id}`);
+        let fav = res?.data?.data;
+
+        if (mounted) setIsFav(!!fav);
+      } catch (e) {
+        console.error("Error checking favorite status:", e);
+      }
+    };
+    checkFav();
+    return () => { mounted = false; };
+  }, [product?.id]);
   return (
     <div
       className="bg-white min-h-[345px] rounded-xl shadow-md p-3 flex flex-col gap-2 w-52 hover:shadow-xl transition-shadow duration-200 flex-shrink-0"
@@ -40,10 +60,11 @@ export default function ProductCard({product, category }) {
       <div className="flex-1 flex items-end">
         <div className="flex w-full justify-between text-xs mt-2">
           <span className="px-3 py-2 min-h-[36px] rounded text-yellow-400 flex items-center font-semibold text-base">
-            {product.rating ? product.rating + "★" : "4.5★"}
+            {product.averageRating ? product.averageRating + "★" : ""}
           </span>
-          <span className="border border-pink-200 px-4 py-2 min-h-[36px] rounded bg-pink-50 text-pink-500 flex items-center font-semibold text-base">
-            {product.isFavorite ? "♥ Yêu thích" : "♡ Yêu thích"}
+          <span className={`px-4 py-2 min-h-[36px] rounded flex items-center font-semibold text-base border transition-colors ${isFav ? 'bg-pink-50 text-pink-600 border-pink-300' : 'bg-white text-pink-500 border-pink-200'}`}>
+            <span className={`mr-2 ${isFav ? 'text-pink-600' : 'text-pink-500'}`}>{isFav ? '♥' : '♡'}</span>
+            <span>Yêu thích</span>
           </span>
         </div>
       </div>

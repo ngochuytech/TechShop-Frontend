@@ -37,12 +37,10 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     const isRefreshEndpoint = originalRequest?.url?.includes('/refresh-token');
-
+    
     if (error.response?.status === 401 && !isRefreshEndpoint) {
       if (!originalRequest._retry) {
         originalRequest._retry = true;
-        
-        // Nếu đã có promise refresh token đang chạy, chờ nó hoàn thành
         if (!refreshTokenPromise) {
           refreshTokenPromise = axios.post(
             `${BASE_URL}/api/v1/users/refresh-token`,
@@ -52,7 +50,7 @@ api.interceptors.response.use(
             }
           )
           .then((response) => {
-            const newToken = response.data?.token || response.data?.access_token;
+            const newToken = response.data.data;
             if (newToken) {
               sessionStorage.setItem(ACCESS_TOKEN, newToken);
             }

@@ -15,6 +15,8 @@ import ProfilePage from './pages/ProfilePage.jsx';
 import CartPage from './pages/CartPage.jsx';
 import CheckoutPage from './pages/CheckoutPage.jsx';
 import OrderDetailPage from './pages/OrderDetailPage.jsx';
+import SearchResultsPage from './pages/SearchResultsPage.jsx';
+import ProductEditPage from './pages/ProductEditPage.jsx';
 
 // Component wrapper để sử dụng useNavigate
 function AppRoutes() {
@@ -46,12 +48,14 @@ function AppRoutes() {
         <Route path="/category/:category/brand/:brand" element={<CategoryBrand />} />
 
         <Route path="/category/:category/product/:id" element={<ProductDetailPage />} />
+        <Route path="/search" element={<SearchResultsPage />} />
         
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/orders/:orderId" element={<OrderDetailPage />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin/products/edit/:productId" element={<ProductEditPage />} />
       </Routes>
     </>
   );

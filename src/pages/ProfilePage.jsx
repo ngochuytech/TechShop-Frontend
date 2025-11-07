@@ -20,25 +20,51 @@ export default function ProfilePage() {
     avatar: "https://ui-avatars.com/api/?name=User"
   });
 
-  const [address, setAddress] = useState(null);
+  const [addresses, setAddresses] = useState([]);
   const [addressForm, setAddressForm] = useState({
     province: "",
     ward: "",
     homeAddress: "",
+    phoneNumber: "",
     suggestedName: ""
   });
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState(null);
 
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
-    phone: "",
+    phoneNumber: "",
     dateOfBirth: "",
   });
 
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Sync addressForm with selected address when editing
+  useEffect(() => {
+    if (showAddressForm && editingAddressId) {
+      const addr = addresses.find(a => a.id === editingAddressId);
+      if (addr) {
+        setAddressForm({
+          province: addr.province || "",
+          ward: addr.ward || "",
+          homeAddress: addr.homeAddress || "",
+          phoneNumber: addr.phoneNumber || addr.phone || "",
+          suggestedName: addr.suggestedName || ""
+        });
+      }
+    } else if (showAddressForm && !editingAddressId) {
+      setAddressForm({
+        province: "",
+        ward: "",
+        homeAddress: "",
+        phoneNumber: "",
+        suggestedName: ""
+      });
+    }
+  }, [showAddressForm, editingAddressId, addresses]);
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
@@ -89,29 +115,19 @@ export default function ProfilePage() {
         setUser({
           fullName: profile.fullName || "User",
           email: profile.email || "user@example.com",
-          phone: profile.phone || "",
+          phoneNumber: profile.phone || "",
           dateOfBirth: profile.dateOfBirth || "",
           avatar: profile.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || "User")}`,
         });
         setFormData({
           fullName: profile.fullName || "",
           email: profile.email || "",
-          phone: profile.phone || "",
+          phoneNumber: profile.phone || "",
           dateOfBirth: profile.dateOfBirth || "",
         });
-        if (profile.address != null) {
-          setAddress({
-            province: profile.address?.province || "",
-            ward: profile.address?.ward || "",
-            homeAddress: profile.address?.homeAddress || "",
-            suggestedName: profile.address?.suggestedName || ""
-          });
-          setAddressForm({
-            province: profile.address?.province || "",
-            ward: profile.address?.ward || "",
-            homeAddress: profile.address?.homeAddress || "",
-            suggestedName: profile.address?.suggestedName || ""
-          });
+        
+        if (Array.isArray(profile.addresses)) {
+          setAddresses(profile.addresses);
         }
       } catch (error) {
         console.error("Error fetching user profile:", error);
@@ -121,15 +137,13 @@ export default function ProfilePage() {
     const fetchOrders = async () => {
       setLoadingOrders(true);
       try {
-        const response = await api.get(`${API}/api/v1/orders/user`);
+        const response = await api.get(`${API}/api/v1/customer/orders/user`);
         let ordersData = [];
         if (Array.isArray(response.data)) {
           ordersData = response.data;
         } else if (Array.isArray(response.data.data)) {
           ordersData = response.data.data;
         }
-
-        console.log("Processed ordersData:", ordersData);
 
         setOrders(ordersData.map(order => ({
           id: order.id,
@@ -198,17 +212,56 @@ export default function ProfilePage() {
 
   const handleAddressSubmit = async (e) => {
     e.preventDefault();
-    if (!addressForm.ward || !addressForm.province || !addressForm.homeAddress) {
-      toast.error("Vui lòng nhập đầy đủ Phường, Thành phố và Địa chỉ nhà!");
+    if (!addressForm.province) {
+      toast.error("Vui lòng chọn Tỉnh/Thành phố!");
+      return;
+    }
+    // Nếu đang sửa địa chỉ, kiểm tra nếu vừa đổi tỉnh/thành phố thì phải chọn lại phường/xã
+    if (!addressForm.ward || addressForm.ward.trim() === "") {
+      toast.error("Vui lòng chọn Phường/Xã!");
+      return;
+    }
+    if (!addressForm.homeAddress) {
+      toast.error("Vui lòng nhập Địa chỉ nhà!");
       return;
     }
     try {
-      await updateUserAddress(addressForm);
-      toast.success("Cập nhật địa chỉ thành công!");
-      setAddress({ ...addressForm });
-      setShowAddressForm(false);
+      let updatedAddresses;
+      if (editingAddressId) {
+        // Sửa địa chỉ
+        updatedAddresses = addresses.map(addr =>
+          addr.id === editingAddressId ? { ...addr, ...addressForm, id: editingAddressId } : addr
+        );
+
+        await api.put(`${API}/api/v1/address/${editingAddressId}`, { ...addressForm });
+        toast.success("Cập nhật địa chỉ thành công!");
+
+      } else {
+        // Thêm địa chỉ
+        const response = await api.post(`${API}/api/v1/address`, addressForm);
+        const newAddress = response.data?.data || addressForm;
+        updatedAddresses = [...addresses, newAddress];
+        toast.success("Thêm địa chỉ thành công!");
+      }
+      setAddresses(updatedAddresses);
+      // Nếu vừa thêm mới, tự động reload lại trang để đồng bộ dữ liệu
+      if (!editingAddressId) {
+        window.location.reload();
+      } else {
+        setShowAddressForm(false);
+        setEditingAddressId(null);
+        setAddressForm({
+          province: "",
+          ward: "",
+          homeAddress: "",
+          phoneNumber: "",
+          suggestedName: ""
+        });
+      }
     } catch (error) {
-      toast.error("Cập nhật địa chỉ thất bại!");
+      console.error(error);
+      
+      toast.error(error.response.data.error || "Cập nhật địa chỉ thất bại!");
     }
   };
 
@@ -290,7 +343,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="text-center border-l border-gray-300 pl-8">
                     <div className="text-3xl font-bold text-purple-600">
-                      {address ? "1" : "0"}
+                      {addresses.length}
                     </div>
                     <div className="text-sm text-gray-600 mt-1">Địa chỉ</div>
                   </div>
@@ -312,7 +365,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-purple-600">
-                      {address ? "1" : "0"}
+                      {addresses.length}
                     </div>
                     <div className="text-xs text-gray-600 mt-1">Địa chỉ</div>
                   </div>
@@ -354,19 +407,6 @@ export default function ProfilePage() {
                     <span>Đơn hàng của tôi</span>
                   </button>
                   <button
-                    onClick={() => setActiveTab("promotions")}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left font-medium transition-all ${activeTab === "promotions"
-                      ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md"
-                      : "text-gray-700 hover:bg-gray-100"
-                      }`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="blue" className="size-6">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 0 1 0 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 0 1 0-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375Z" />
-                    </svg>
-
-                    <span>Mã giảm giá</span>
-                  </button>
-                  <button
                     onClick={() => setActiveTab("favorites")}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left font-medium transition-all ${activeTab === "favorites"
                       ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md"
@@ -401,12 +441,14 @@ export default function ProfilePage() {
             <div className="lg:col-span-3">
               {activeTab === "info" && (
                 <ProfileInfo
-                  address={address}
+                  addresses={addresses}
                   addressForm={addressForm}
                   handleAddressChange={handleAddressChange}
                   handleAddressSubmit={handleAddressSubmit}
                   showAddressForm={showAddressForm}
                   setShowAddressForm={setShowAddressForm}
+                  editingAddressId={editingAddressId}
+                  setEditingAddressId={setEditingAddressId}
                   formData={formData}
                   handleChange={handleChange}
                   handleSubmit={handleSubmit}

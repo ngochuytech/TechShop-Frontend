@@ -27,7 +27,6 @@ export default function RegisterForm() {
       if (!result.success) {
         throw new Error(result.error || "Đăng ký thất bại");
       }
-      console.log("Registration successful:", result.data);
       toast.success("Đăng ký thành công. Bạn có thể đăng nhập.");
       navigate("/auth", { state: { showLogin: true } });
     } catch (e) {

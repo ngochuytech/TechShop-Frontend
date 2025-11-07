@@ -1,9 +1,9 @@
 export default function AdminSidebar({ activeTab, setActiveTab }) {
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: "📊" },
-    { id: "product-models", label: "Product Models", icon: "📋" },
-    { id: "products", label: "Products", icon: "📦" },
-    { id: "product-variants", label: "Product Variants", icon: "🎨" },
+    { id: "product-models", label: "Model sản phẩm", icon: "📋" },
+    { id: "products", label: "Sản phẩm", icon: "📦" },
+    { id: "product-variants", label: "Biến thể sản phẩm", icon: "🎨" },
   ];
 
   return (

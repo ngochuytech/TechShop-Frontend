@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Header from "../components/Header/Header";
 import Footer from "../components/Footer/Footer";
 import api from "../api";
+import { toast } from "react-toastify";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -19,32 +20,48 @@ export default function OrderDetailPage() {
   const fetchOrderDetail = async () => {
     setLoading(true);
     try {
-      const response = await api.get(`${API}/api/v1/orders/${orderId}`);
+      const response = await api.get(`${API}/api/v1/customer/orders/${orderId}`);
       const orderData = response.data.data;
-      console.log("orderData", orderData);
-      
-      
+
       setOrder({
         id: orderData.id,
-        createdAt: orderData.createdAt ? new Date(orderData.createdAt).toLocaleDateString('vi-VN') : '',
+        createdAt: orderData.createdAt ? new Date(orderData.createdAt).toLocaleString('vi-VN') : '',
+        updatedAt: orderData.updatedAt ? new Date(orderData.updatedAt).toLocaleString('vi-VN') : '',
         status: orderData.status,
         totalPrice: orderData.totalPrice,
+        shippingFee: orderData.shippingFee,
         shippingAddress: orderData.shippingAddress || {},
         paymentMethod: orderData.paymentMethod,
+        note: orderData.note,
         items: Array.isArray(orderData.orderItems)
           ? orderData.orderItems.map(item => ({
-              id: item.id,
-              productName: item.productName,
-              productImage: item.productImage,
-              price: item.price,
-              quantity: item.quantity
-            }))
+            id: item.id,
+            productName: item.productName,
+            productImage: item.productImage,
+            price: item.price,
+            quantity: item.quantity
+          }))
           : []
       });
+
     } catch (error) {
       console.error("Error fetching order detail:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancelOrder = async (orderId) => {
+    try {
+      await api.put(`${API}/api/v1/customer/orders/${orderId}/cancel`);
+      toast.success("Đơn hàng đã được hủy thành công!");
+      setOrder((prev) => ({
+        ...prev,
+        status: "CANCELLED"
+      }));
+    } catch (error) {
+      console.error("Error cancelling order:", error);
+      toast.error(error.response?.data?.error || "Hủy đơn hàng thất bại!");
     }
   };
 
@@ -61,6 +78,38 @@ export default function OrderDetailPage() {
       default:
         return "bg-gray-100 text-gray-700";
     }
+  };
+
+  const getOrderProgress = (status) => {
+    const steps = [
+      { id: 1, label: "Chờ xác nhận", status: "PENDING" },
+      { id: 2, label: "Đã xác nhận", status: "CONFIRMED" },
+      { id: 3, label: "Đang giao", status: "SHIPPING" },
+      { id: 4, label: "Đã giao", status: "DELIVERED" }
+    ];
+
+    let currentStep = 0;
+
+    switch (status) {
+      case "PENDING":
+        currentStep = 1;
+        break;
+      case "CONFIRMED":
+        currentStep = 2;
+        break;
+      case "SHIPPING":
+        currentStep = 3;
+        break;
+      case "DELIVERED":
+        currentStep = 4;
+        break;
+      case "CANCELLED":
+        return { steps, currentStep: -1, isCancelled: true };
+      default:
+        currentStep = 0;
+    }
+
+    return { steps, currentStep, isCancelled: false };
   };
 
   const getPaymentMethodText = (method) => {
@@ -143,10 +192,80 @@ export default function OrderDetailPage() {
             </h1>
             <div className="flex items-center gap-4 mt-2">
               <p className="text-gray-600">Mã đơn hàng: <span className="font-semibold text-gray-900">{order.id}</span></p>
-              <span className={`px-4 py-1 rounded-full text-sm font-semibold ${getStatusColor(order.status)}`}>
+              <span className={`px-4 py-1 border border-blue-600 rounded-full text-sm font-semibold ${getStatusColor(order.status)}`}>
                 {order.status}
               </span>
             </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+            {(() => {
+              const { steps, currentStep, isCancelled } = getOrderProgress(order.status);
+
+              if (isCancelled) {
+                return (
+                  <div className="text-center py-8">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8 text-red-600">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-red-600 mb-2">Đơn hàng đã bị hủy</h3>
+                    <p className="text-gray-600">Đơn hàng này đã được hủy</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="relative px-8">
+                  {/* Progress Line */}
+                  <div className="absolute top-8 left-0 right-0 h-1 bg-gray-200 mx-50">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500"
+                      style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
+                    ></div>
+                  </div>
+
+                  {/* Steps */}
+                  <div className="grid grid-cols-4 gap-4 relative z-10">
+                    {steps.map((step) => {
+                      const isCompleted = step.id <= currentStep;
+                      const isCurrent = step.id === currentStep;
+
+                      return (
+                        <div key={step.id} className="flex flex-col items-center">
+                          <div
+                            className={`w-16 h-16 rounded-full flex items-center justify-center mb-3 transition-all duration-300 ${isCompleted
+                              ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg scale-110'
+                              : 'bg-gray-200 text-gray-400'
+                              } ${isCurrent ? 'ring-4 ring-blue-200' : ''}`}
+                          >
+                            {isCompleted ? (
+                              step.id < currentStep ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-8 h-8">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                </svg>
+                              ) : (
+                                <span className="text-2xl font-bold">{step.id}</span>
+                              )
+                            ) : (
+                              <span className="text-xl font-bold">{step.id}</span>
+                            )}
+                          </div>
+                          <p
+                            className={`text-sm font-medium text-center ${isCompleted ? 'text-gray-900' : 'text-gray-400'
+                              }`}
+                          >
+                            {step.label}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -179,7 +298,7 @@ export default function OrderDetailPage() {
                           <span className="text-sm text-gray-600">
                             Số lượng: <span className="font-medium text-gray-900">{item.quantity}</span>
                           </span>
-                          <span className="font-bold text-blue-600">
+                          <span className="font-bold text-red-600">
                             {formatPrice(item.price)}
                           </span>
                         </div>
@@ -208,9 +327,9 @@ export default function OrderDetailPage() {
                   <p className="text-gray-900">
                     <span className="font-semibold">Địa chỉ:</span> {order.shippingAddress?.homeAddress || ""}, {order.shippingAddress?.ward || ""}, {order.shippingAddress?.province || ""}
                   </p>
-                  {order.shippingAddress?.note && (
+                  {order.note && (
                     <p className="text-gray-900">
-                      <span className="font-semibold">Ghi chú:</span> {order.shippingAddress.note}
+                      <span className="font-semibold">Ghi chú:</span> {order.note}
                     </p>
                   )}
                 </div>
@@ -230,6 +349,10 @@ export default function OrderDetailPage() {
                     <span className="font-medium text-gray-900">{order.createdAt}</span>
                   </div>
                   <div className="flex justify-between text-gray-600">
+                    <span>Cập nhật:</span>
+                    <span className="font-medium text-gray-900">{order.updatedAt}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
                     <span>Phương thức thanh toán:</span>
                     <span className="font-medium text-gray-900 text-sm text-right">
                       {getPaymentMethodText(order.paymentMethod)}
@@ -244,18 +367,23 @@ export default function OrderDetailPage() {
                   </div>
                   <div className="flex justify-between text-gray-600">
                     <span>Phí vận chuyển:</span>
-                    <span className="text-green-600">Miễn phí</span>
+                    {order.shippingFee == 0 ? (
+                      <span className="text-green-600">Miễn phí</span>
+                    ) : (
+                      <span>{formatPrice(order.shippingFee)}</span>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex justify-between text-lg font-bold mb-6">
                   <span>Tổng cộng:</span>
-                  <span className="text-blue-600">{formatPrice(order.totalPrice)}</span>
+                  <span className="text-red-600">{formatPrice(order.totalPrice)}</span>
                 </div>
 
-                {order.status === "Chờ xác nhận" && (
+                {order.status === "PENDING" && (
                   <button
                     className="w-full py-3 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-all mb-3"
+                    onClick={() => handleCancelOrder(order.id)}
                   >
                     Hủy đơn hàng
                   </button>
