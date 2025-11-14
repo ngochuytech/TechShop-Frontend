@@ -16,8 +16,15 @@ export default function ProductSection({ title, brands, category }) {
     // Gọi API lấy sản phẩm theo category và brand
     async function fetchProducts() {
       try {
-        const res = await axios.get(`${API}/api/v1/products/category/${category}/brand/${active}`);
-        setProducts(res.data.data || []);
+        const res = await axios.get(`${API}/api/v1/products/category/${category}/brand/${active}`, {
+          params: {
+            page: 0,
+            size: 20,
+            sortBy: 'createdAt',
+            sortDir: 'desc'
+          }
+        });
+        setProducts(res.data.data?.content || []);
         
       } catch (e) {
         console.error("Error fetching products:", e);

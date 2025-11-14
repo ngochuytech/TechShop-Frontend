@@ -1,14 +1,22 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import api from '../../api';
-
+import { ACCESS_TOKEN } from '../../constants';
 const API = import.meta.env.VITE_API_URL;
 
 export default function ProductCard({product, category }) {
   const navigate = useNavigate();
   const [isFav, setIsFav] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
+    const token = sessionStorage.getItem(ACCESS_TOKEN);
+    setIsLoggedIn(!!token);
+  }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    
     let mounted = true;
     const checkFav = async () => {
       if (!product || !product.id) return;
@@ -23,7 +31,7 @@ export default function ProductCard({product, category }) {
     };
     checkFav();
     return () => { mounted = false; };
-  }, [product?.id]);
+  }, [product?.id, isLoggedIn]);
   return (
     <div
       className="bg-white min-h-[345px] rounded-xl shadow-md p-3 flex flex-col gap-2 w-52 hover:shadow-xl transition-shadow duration-200 flex-shrink-0"
@@ -57,15 +65,26 @@ export default function ProductCard({product, category }) {
       </div>
 
       <p className="text-gray-400 text-xs text-center">{product.promotion || "Khuyến mãi hấp dẫn"}</p>
+      
+      {product.stock === 0 && (
+        <div className="bg-gray-200 text-gray-600 text-xs font-semibold py-1 px-2 rounded text-center">
+          Tạm hết hàng
+        </div>
+      )}
+      
       <div className="flex-1 flex items-end">
-        <div className="flex w-full justify-between text-xs mt-2">
+        <div
+          className={`flex w-full text-xs mt-2 ${isLoggedIn ? 'justify-between' : 'justify-center'}`}
+        >
           <span className="px-3 py-2 min-h-[36px] rounded text-yellow-400 flex items-center font-semibold text-base">
             {product.averageRating ? product.averageRating + "★" : ""}
           </span>
-          <span className={`px-4 py-2 min-h-[36px] rounded flex items-center font-semibold text-base border transition-colors ${isFav ? 'bg-pink-50 text-pink-600 border-pink-300' : 'bg-white text-pink-500 border-pink-200'}`}>
-            <span className={`mr-2 ${isFav ? 'text-pink-600' : 'text-pink-500'}`}>{isFav ? '♥' : '♡'}</span>
-            <span>Yêu thích</span>
-          </span>
+          {isLoggedIn && (
+            <span className={`px-4 py-2 min-h-[36px] rounded flex items-center font-semibold text-base border transition-colors ${isFav ? 'bg-pink-50 text-pink-600 border-pink-300' : 'bg-white text-pink-500 border-pink-200'}`}>
+              <span className={`mr-2 ${isFav ? 'text-pink-600' : 'text-pink-500'}`}>{isFav ? '♥' : '♡'}</span>
+              <span>Yêu thích</span>
+            </span>
+          )}
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Header from "../components/Header/Header";
 import Footer from "../components/Footer/Footer";
 import { toast } from "react-toastify";
@@ -7,11 +8,14 @@ import ProfileInfo from "../components/Profile/ProfileInfo";
 import ProfileOrders from "../components/Profile/ProfileOrders";
 import ProfileFavorites from "../components/Profile/ProfileFavorites";
 import ProfileSettings from "../components/Profile/ProfileSettings";
+import ProfileNotifications from "../components/Profile/ProfileNotifications";
 
 const API = import.meta.env.VITE_API_URL;
 
 export default function ProfilePage() {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("info");
+
   const [user, setUser] = useState({
     fullName: "",
     email: "",
@@ -38,9 +42,17 @@ export default function ProfilePage() {
     dateOfBirth: "",
   });
 
-  const [orders, setOrders] = useState([]);
-  const [loadingOrders, setLoadingOrders] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [favoritesCount, setFavoritesCount] = useState(0);
+  const [ordersCount, setOrdersCount] = useState(0);
+
+  // Check URL params for tab
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && ["info", "orders", "favorites", "notifications", "settings"].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   // Sync addressForm with selected address when editing
   useEffect(() => {
@@ -112,6 +124,7 @@ export default function ProfilePage() {
       try {
         const response = await api.get(`${API}/api/v1/users/profile`);
         const profile = response.data.data;
+
         setUser({
           fullName: profile.fullName || "User",
           email: profile.email || "user@example.com",
@@ -125,7 +138,7 @@ export default function ProfilePage() {
           phoneNumber: profile.phone || "",
           dateOfBirth: profile.dateOfBirth || "",
         });
-        
+
         if (Array.isArray(profile.addresses)) {
           setAddresses(profile.addresses);
         }
@@ -134,40 +147,35 @@ export default function ProfilePage() {
       }
     };
 
-    const fetchOrders = async () => {
-      setLoadingOrders(true);
+    const fetchOrdersCount = async () => {
       try {
-        const response = await api.get(`${API}/api/v1/customer/orders/user`);
-        let ordersData = [];
-        if (Array.isArray(response.data)) {
-          ordersData = response.data;
-        } else if (Array.isArray(response.data.data)) {
-          ordersData = response.data.data;
+        const response = await api.get(`${API}/api/v1/customer/orders/user`, {
+          params: { page: 0, size: 1 }
+        });
+        if (response.data?.data?.totalElements) {
+          setOrdersCount(response.data.data.totalElements);
         }
-
-        setOrders(ordersData.map(order => ({
-          id: order.id,
-          date: order.createdAt ? new Date(order.createdAt).toLocaleDateString('vi-VN') : '',
-          status: order.status,
-          total: order.totalPrice,
-          items: Array.isArray(order.items)
-            ? order.items.map(item => ({
-              name: item.productName,
-              price: item.price,
-              quantity: item.quantity
-            }))
-            : []
-        })));
       } catch (error) {
-        console.error("Error fetching orders:", error);
-        setOrders([]);
-      } finally {
-        setLoadingOrders(false);
+        console.error("Error fetching orders count:", error);
+      }
+    };
+
+    const fetchFavoritesCount = async () => {
+      try {
+        const response = await api.get(`${API}/api/v1/customer/favourites`, {
+          params: { page: 0, size: 1 }
+        });
+        if (response.data?.data?.totalElements) {
+          setFavoritesCount(response.data.data.totalElements);
+        }
+      } catch (error) {
+        console.error("Error fetching favorites count:", error);
       }
     };
 
     fetchProfile();
-    fetchOrders();
+    fetchOrdersCount();
+    fetchFavoritesCount();
   }, []);
 
 
@@ -194,12 +202,6 @@ export default function ProfilePage() {
     };
     updateProfile();
   };
-
-  function updateUserAddress(addressData) {
-    return api.put(`${API}/api/v1/users/update-address-user`, addressData);
-  }
-
-  // ...existing code...
 
   // Trong component ProfilePage
   const handleAddressChange = (e) => {
@@ -260,7 +262,7 @@ export default function ProfilePage() {
       }
     } catch (error) {
       console.error(error);
-      
+
       toast.error(error.response.data.error || "Cập nhật địa chỉ thất bại!");
     }
   };
@@ -328,7 +330,7 @@ export default function ProfilePage() {
                     </h1>
                     <p className="text-gray-700 mb-1">{user.email}</p>
                     <p className="text-gray-600 text-sm">
-                      📞 {user.phone || "Chưa cập nhật số điện thoại"}
+                      📞 {user.phoneNumber || "Chưa cập nhật số điện thoại"}
                     </p>
                   </div>
                 </div>
@@ -337,7 +339,7 @@ export default function ProfilePage() {
                 <div className="hidden md:flex gap-8">
                   <div className="text-center border-l border-gray-300 pl-8">
                     <div className="text-3xl font-bold text-blue-600">
-                      {orders.length}
+                      {ordersCount}
                     </div>
                     <div className="text-sm text-gray-600 mt-1">Đơn hàng</div>
                   </div>
@@ -348,7 +350,7 @@ export default function ProfilePage() {
                     <div className="text-sm text-gray-600 mt-1">Địa chỉ</div>
                   </div>
                   <div className="text-center border-l border-gray-300 pl-8">
-                    <div className="text-3xl font-bold text-pink-600">0</div>
+                    <div className="text-3xl font-bold text-pink-600">{favoritesCount}</div>
                     <div className="text-sm text-gray-600 mt-1">Yêu thích</div>
                   </div>
                 </div>
@@ -359,7 +361,7 @@ export default function ProfilePage() {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-blue-600">
-                      {orders.length}
+                      {ordersCount}
                     </div>
                     <div className="text-xs text-gray-600 mt-1">Đơn hàng</div>
                   </div>
@@ -370,7 +372,7 @@ export default function ProfilePage() {
                     <div className="text-xs text-gray-600 mt-1">Địa chỉ</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-pink-600">0</div>
+                    <div className="text-2xl font-bold text-pink-600">{favoritesCount}</div>
                     <div className="text-xs text-gray-600 mt-1">Yêu thích</div>
                   </div>
                 </div>
@@ -420,6 +422,18 @@ export default function ProfilePage() {
                     <span>Yêu thích</span>
                   </button>
                   <button
+                    onClick={() => setActiveTab("notifications")}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left font-medium transition-all ${activeTab === "notifications"
+                      ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md"
+                      : "text-gray-700 hover:bg-gray-100"
+                      }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                    </svg>
+                    <span>Thông báo</span>
+                  </button>
+                  <button
                     onClick={() => setActiveTab("settings")}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left font-medium transition-all ${activeTab === "settings"
                       ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md"
@@ -457,10 +471,13 @@ export default function ProfilePage() {
                 />
               )}
               {activeTab === "orders" && (
-                <ProfileOrders orders={orders} getStatusColor={getStatusColor} loading={loadingOrders} />
+                <ProfileOrders getStatusColor={getStatusColor} />
               )}
               {activeTab === "favorites" && (
                 <ProfileFavorites />
+              )}
+              {activeTab === "notifications" && (
+                <ProfileNotifications />
               )}
               {activeTab === "settings" && (
                 <ProfileSettings />

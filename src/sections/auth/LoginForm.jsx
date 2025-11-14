@@ -1,5 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
+import { ACCESS_TOKEN } from "../../constants";
 const API = import.meta.env.VITE_API_URL;
 
 export default function LoginForm() {
@@ -26,7 +27,7 @@ export default function LoginForm() {
       const data = result.data;
 
       if (data.token) {
-        sessionStorage.setItem("accessToken", data.token);
+        sessionStorage.setItem(ACCESS_TOKEN, data.token);
       }
       if (data.id) {
         sessionStorage.setItem("userId", data.id);
@@ -59,7 +60,15 @@ export default function LoginForm() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1">Mật khẩu</label>
+        <div className="flex justify-between items-center mb-1">
+          <label className="block text-sm font-medium">Mật khẩu</label>
+          <a
+            href="/forgot-password"
+            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+          >
+            Quên mật khẩu?
+          </a>
+        </div>
         <input
           type="password"
           className="w-full rounded-lg border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"

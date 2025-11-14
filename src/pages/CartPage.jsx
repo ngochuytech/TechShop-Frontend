@@ -30,7 +30,7 @@ export default function CartPage() {
       setTotalQuantity(cartData?.totalQuantity || items.length);
       setTotalPrice(cartData?.totalPrice || 0);
       if (!initialized) {
-        setSelectedIds(items.map(item => item.id)); // Mặc định chọn tất cả khi load lần đầu
+        setSelectedIds(items.map(item => item.id));
         setInitialized(true);
       }
       setLoading(false);
@@ -116,7 +116,7 @@ export default function CartPage() {
                 Bạn chưa có sản phẩm nào trong giỏ hàng
               </p>
               <button
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/home")}
                 className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all"
               >
                 Tiếp tục mua sắm

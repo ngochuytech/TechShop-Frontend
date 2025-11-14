@@ -17,6 +17,9 @@ import CheckoutPage from './pages/CheckoutPage.jsx';
 import OrderDetailPage from './pages/OrderDetailPage.jsx';
 import SearchResultsPage from './pages/SearchResultsPage.jsx';
 import ProductEditPage from './pages/ProductEditPage.jsx';
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 // Component wrapper để sử dụng useNavigate
 function AppRoutes() {
@@ -41,6 +44,8 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Navigate to="/auth" replace />} />
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/oauth2/callback" element={<OAuth2Callback />} />
 
         <Route path="/home" element={<HomePage />} />
@@ -54,8 +59,8 @@ function AppRoutes() {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/orders/:orderId" element={<OrderDetailPage />} />
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="/admin/products/edit/:productId" element={<ProductEditPage />} />
+        <Route path="/admin" element={<ProtectedRoute requiredRole="ADMIN"><AdminPage /></ProtectedRoute>} />
+        <Route path="/admin/products/edit/:productId" element={<ProtectedRoute requiredRole="ADMIN"><ProductEditPage /></ProtectedRoute>} />
       </Routes>
     </>
   );

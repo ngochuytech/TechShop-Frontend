@@ -29,6 +29,8 @@ export default function OrderDetailPage() {
         updatedAt: orderData.updatedAt ? new Date(orderData.updatedAt).toLocaleString('vi-VN') : '',
         status: orderData.status,
         totalPrice: orderData.totalPrice,
+        subtotalPrice: orderData.subtotalPrice || 0,
+        discountAmount: orderData.discountAmount || 0,
         shippingFee: orderData.shippingFee,
         shippingAddress: orderData.shippingAddress || {},
         paymentMethod: orderData.paymentMethod,
@@ -52,6 +54,9 @@ export default function OrderDetailPage() {
   };
 
   const handleCancelOrder = async (orderId) => {
+    if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này?")) {
+      return;
+    }
     try {
       await api.put(`${API}/api/v1/customer/orders/${orderId}/cancel`);
       toast.success("Đơn hàng đã được hủy thành công!");
@@ -65,16 +70,37 @@ export default function OrderDetailPage() {
     }
   };
 
+  // Map status code to Vietnamese label
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case "PENDING":
+        return "Chờ xác nhận";
+      case "CONFIRMED":
+        return "Đã xác nhận";
+      case "SHIPPING":
+        return "Đang giao";
+      case "DELIVERED":
+        return "Đã giao";
+      case "CANCELLED":
+        return "Đã hủy";
+      default:
+        return status;
+    }
+  };
+
+  // Map status code to color classes
   const getStatusColor = (status) => {
     switch (status) {
-      case "Đang giao":
-        return "bg-blue-100 text-blue-700";
-      case "Đã giao":
-        return "bg-green-100 text-green-700";
-      case "Đã hủy":
-        return "bg-red-100 text-red-700";
-      case "Chờ xác nhận":
+      case "PENDING":
         return "bg-yellow-100 text-yellow-700";
+      case "CONFIRMED":
+        return "bg-blue-100 text-blue-700";
+      case "SHIPPING":
+        return "bg-blue-100 text-blue-700";
+      case "DELIVERED":
+        return "bg-green-100 text-green-700";
+      case "CANCELLED":
+        return "bg-red-100 text-red-700";
       default:
         return "bg-gray-100 text-gray-700";
     }
@@ -193,7 +219,7 @@ export default function OrderDetailPage() {
             <div className="flex items-center gap-4 mt-2">
               <p className="text-gray-600">Mã đơn hàng: <span className="font-semibold text-gray-900">{order.id}</span></p>
               <span className={`px-4 py-1 border border-blue-600 rounded-full text-sm font-semibold ${getStatusColor(order.status)}`}>
-                {order.status}
+                {getStatusLabel(order.status)}
               </span>
             </div>
           </div>
@@ -229,9 +255,10 @@ export default function OrderDetailPage() {
 
                   {/* Steps */}
                   <div className="grid grid-cols-4 gap-4 relative z-10">
-                    {steps.map((step) => {
+                    {steps.map((step, idx) => {
                       const isCompleted = step.id <= currentStep;
                       const isCurrent = step.id === currentStep;
+                      const isLast = idx === steps.length - 1;
 
                       return (
                         <div key={step.id} className="flex flex-col items-center">
@@ -242,7 +269,7 @@ export default function OrderDetailPage() {
                               } ${isCurrent ? 'ring-4 ring-blue-200' : ''}`}
                           >
                             {isCompleted ? (
-                              step.id < currentStep ? (
+                              (step.id < currentStep || (isLast && currentStep === steps.length)) ? (
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-8 h-8">
                                   <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                                 </svg>
@@ -362,8 +389,8 @@ export default function OrderDetailPage() {
 
                 <div className="space-y-3 mb-4 pb-4 border-b border-gray-200">
                   <div className="flex justify-between text-gray-600">
-                    <span>Tạm tính:</span>
-                    <span>{formatPrice(order.totalPrice)}</span>
+                    <span>Giá gốc:</span>
+                    <span>{formatPrice(order.subtotalPrice)}</span>
                   </div>
                   <div className="flex justify-between text-gray-600">
                     <span>Phí vận chuyển:</span>
@@ -373,10 +400,16 @@ export default function OrderDetailPage() {
                       <span>{formatPrice(order.shippingFee)}</span>
                     )}
                   </div>
+                  {order.discountAmount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Giảm giá:</span>
+                      <span>- {formatPrice(order.discountAmount)}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-between text-lg font-bold mb-6">
-                  <span>Tổng cộng:</span>
+                  <span>Tổng tiền:</span>
                   <span className="text-red-600">{formatPrice(order.totalPrice)}</span>
                 </div>
 

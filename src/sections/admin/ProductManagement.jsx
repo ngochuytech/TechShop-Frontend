@@ -15,6 +15,7 @@ export default function ProductManagement() {
   const [primaryImageIndex, setPrimaryImageIndex] = useState(0);
   const [productModels, setProductModels] = useState([]);
   const productModelDropdownRef = useRef(null);
+  const formProductModelDropdownRef = useRef(null);
   const [attributes, setAttributes] = useState([]);
   const [showAttributeDropdown, setShowAttributeDropdown] = useState({});
   const attributeDropdownRefs = useRef({});
@@ -28,6 +29,11 @@ export default function ProductManagement() {
     attributes: [],
   });
   const [submitLoading, setSubmitLoading] = useState(false);
+
+  // Form Product Model search states
+  const [formProductModelSearch, setFormProductModelSearch] = useState("");
+  const [showFormProductModelDropdown, setShowFormProductModelDropdown] = useState(false);
+  const [selectedFormProductModel, setSelectedFormProductModel] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -56,8 +62,11 @@ export default function ProductManagement() {
       if (productModelDropdownRef.current && !productModelDropdownRef.current.contains(event.target)) {
         setShowProductModelDropdown(false);
       }
-      
-      // Check attribute dropdowns
+
+      if (formProductModelDropdownRef.current && !formProductModelDropdownRef.current.contains(event.target)) {
+        setShowFormProductModelDropdown(false);
+      }
+
       Object.keys(showAttributeDropdown).forEach(idx => {
         const ref = attributeDropdownRefs.current[idx];
         if (ref && !ref.contains(event.target)) {
@@ -89,9 +98,9 @@ export default function ProductManagement() {
         params.append('productModelId', filterProductModel);
       }
 
-      const response = await axios.get(`${API}/api/v1/admin/products?${params.toString()}`);
+      const response = await api.get(`${API}/api/v1/admin/products?${params.toString()}`);
       const data = response.data.data || response.data;
-          
+
       if (data.content) {
         setProducts(data.content);
         setTotalPages(data.totalPages || 0);
@@ -114,9 +123,9 @@ export default function ProductManagement() {
 
   const fetchProductModels = async () => {
     try {
-      const response = await axios.get(`${API}/api/v1/admin/product-models/search`);
+      const response = await api.get(`${API}/api/v1/admin/product-models/search`);
       const data = response.data.data || response.data;
-      
+
       setProductModels(Array.isArray(data) ? data : []);
     } catch (error) {
       setProductModels([]);
@@ -125,9 +134,9 @@ export default function ProductManagement() {
 
   const fetchAttributes = async () => {
     try {
-      const response = await axios.get(`${API}/api/v1/admin/attributes/list`);
+      const response = await api.get(`${API}/api/v1/admin/attributes/list`);
       const data = response.data.data || response.data;
-      
+
       setAttributes(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching attributes:", error);
@@ -149,8 +158,7 @@ export default function ProductManagement() {
       newAttrs[idx][field] = value;
       return { ...prev, attributes: newAttrs };
     });
-    
-    // Show dropdown when typing in key field
+
     if (field === 'key' && value) {
       setShowAttributeDropdown(prev => ({ ...prev, [idx]: true }));
     } else if (field === 'key' && !value) {
@@ -170,7 +178,6 @@ export default function ProductManagement() {
       const newAttrs = prev.attributes.filter((_, i) => i !== idx);
       return { ...prev, attributes: newAttrs };
     });
-    // Clean up dropdown state
     setShowAttributeDropdown(prev => {
       const newState = { ...prev };
       delete newState[idx];
@@ -190,8 +197,8 @@ export default function ProductManagement() {
   const getFilteredAttributes = (idx) => {
     const searchValue = formData.attributes[idx]?.key?.toLowerCase() || '';
     if (!searchValue) return attributes;
-    
-    return attributes.filter(attr => 
+
+    return attributes.filter(attr =>
       attr.name?.toLowerCase().includes(searchValue)
     );
   };
@@ -206,6 +213,10 @@ export default function ProductManagement() {
     e.preventDefault();
     if (!formData.name || !formData.configuration_summary || !formData.description || !formData.price) {
       toast.error("Vui lòng điền đầy đủ thông tin bắt buộc");
+      return;
+    }
+    if (!formData.stock || parseInt(formData.stock) < 0) {
+      toast.error("Số lượng trong kho phải là số không âm và bắt buộc");
       return;
     }
     setSubmitLoading(true);
@@ -252,6 +263,9 @@ export default function ProductManagement() {
         stock: "",
         attributes: [],
       });
+      setSelectedFormProductModel(null);
+      setFormProductModelSearch("");
+      setShowFormProductModelDropdown(false);
       fetchProducts();
     } catch (error) {
       console.error("Error saving product:", error);
@@ -278,6 +292,9 @@ export default function ProductManagement() {
       stock: "",
       attributes: [],
     });
+    setSelectedFormProductModel(null);
+    setFormProductModelSearch("");
+    setShowFormProductModelDropdown(false);
   };
 
   const handleDelete = async (id) => {
@@ -286,7 +303,7 @@ export default function ProductManagement() {
     }
 
     try {
-      await api.delete(`/api/v1/products/admin/delete/${id}`);
+      await api.delete(`/api/v1/admin/products/delete/${id}`);
       toast.success("Xóa Product thành công!");
       fetchProducts();
     } catch (error) {
@@ -333,6 +350,14 @@ export default function ProductManagement() {
         setSortBy("price");
         setSortDir("desc");
         break;
+      case "stock-asc":
+        setSortBy("stock");
+        setSortDir("asc");
+        break;
+      case "stock-desc":
+        setSortBy("stock");
+        setSortDir("desc");
+        break;
       default:
         setSortBy("createdAt");
         setSortDir("desc");
@@ -374,6 +399,33 @@ export default function ProductManagement() {
     model.name.toLowerCase().includes(productModelSearch.toLowerCase())
   );
 
+  // Form Product Model handlers
+  const handleFormProductModelSearch = (value) => {
+    setFormProductModelSearch(value);
+    setShowFormProductModelDropdown(true);
+  };
+
+  const handleSelectFormProductModel = (model) => {
+    setSelectedFormProductModel(model);
+    setFormProductModelSearch(model.name);
+    setFormData(prev => ({ ...prev, productModelId: model.id }));
+    setShowFormProductModelDropdown(false);
+  };
+
+  const handleClearFormProductModel = () => {
+    setSelectedFormProductModel(null);
+    setFormProductModelSearch("");
+    setFormData(prev => ({ ...prev, productModelId: "" }));
+    setShowFormProductModelDropdown(false);
+  };
+
+  const getFilteredFormProductModels = () => {
+    if (!formProductModelSearch) return productModels;
+    return productModels.filter(model =>
+      model.name.toLowerCase().includes(formProductModelSearch.toLowerCase())
+    );
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-lg p-8">
@@ -396,6 +448,46 @@ export default function ProductManagement() {
         >
           {showForm ? "Đóng Form" : "➕ Thêm Product"}
         </button>
+      </div>
+
+      {/* Info Box - Hướng dẫn */}
+      <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-lg p-6 shadow-sm">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl">
+            ℹ️
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-gray-800 mb-2">
+              📦 Cách thức hoạt động: Product Model và Product
+            </h3>
+            <div className="space-y-2 text-sm text-gray-700">
+              <p className="flex items-start gap-2">
+                <span className="font-bold text-blue-600 mt-0.5">1️⃣</span>
+                <span><strong>Product Model</strong> (Mẫu sản phẩm): Đại diện cho dòng sản phẩm chung.
+                  <br />VD: "iPhone 15 Pro Max", "Samsung Galaxy S24 Ultra", "MacBook Pro M3"</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <span className="font-bold text-blue-600 mt-0.5">2️⃣</span>
+                <span><strong>Product</strong> (Sản phẩm cụ thể): Các biến thể/phiên bản khác nhau của Product Model.
+                  <br />VD: "iPhone 15 Pro Max 256GB Titan Xanh", "iPhone 15 Pro Max 512GB Titan Tự Nhiên"</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <span className="font-bold text-purple-600 mt-0.5">🔗</span>
+                <span><strong>Mối quan hệ</strong>: 1 Product Model → Nhiều Products
+                  <br />Mỗi Product thuộc về 1 Product Model duy nhất và có các thuộc tính riêng (dung lượng, màu sắc, RAM, v.v.)</span>
+              </p>
+              <div className="mt-3 p-3 bg-white rounded-lg border border-blue-200">
+                <p className="font-semibold text-gray-800 mb-1">💡 Ví dụ thực tế:</p>
+                <ul className="space-y-1 ml-4 text-xs text-gray-600">
+                  <li>• <strong>Product Model:</strong> iPhone 15 Pro Max</li>
+                  <li className="ml-4">↳ <strong>Product:</strong> iPhone 15 Pro Max 256GB - Titan Xanh - 29.990.000₫</li>
+                  <li className="ml-4">↳ <strong>Product:</strong> iPhone 15 Pro Max 512GB - Titan Tự Nhiên - 34.990.000₫</li>
+                  <li className="ml-4">↳ <strong>Product:</strong> iPhone 15 Pro Max 1TB - Titan Trắng - 39.990.000₫</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Search and Filter Section */}
@@ -502,7 +594,23 @@ export default function ProductManagement() {
               Sắp xếp theo
             </label>
             <select
-              value={`${sortBy === "createdAt" ? (sortDir === "desc" ? "newest" : "oldest") : sortBy === "price" ? (sortDir === "asc" ? "price-asc" : "price-desc") : (sortDir === "asc" ? "name-asc" : "name-desc")}`}
+              value={
+                sortBy === "createdAt"
+                  ? sortDir === "desc"
+                    ? "newest"
+                    : "oldest"
+                  : sortBy === "price"
+                    ? sortDir === "asc"
+                      ? "price-asc"
+                      : "price-desc"
+                    : sortBy === "stock"
+                      ? sortDir === "asc"
+                        ? "stock-asc"
+                        : "stock-desc"
+                      : sortDir === "asc"
+                        ? "name-asc"
+                        : "name-desc"
+              }
               onChange={(e) => handleSortChange(e.target.value)}
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
@@ -512,6 +620,8 @@ export default function ProductManagement() {
               <option value="name-desc">Tên Z-A</option>
               <option value="price-asc">Giá thấp đến cao</option>
               <option value="price-desc">Giá cao đến thấp</option>
+              <option value="stock-asc">Số lượng trong kho tăng dần</option>
+              <option value="stock-desc">Số lượng trong kho giảm dần</option>
             </select>
           </div>
         </div>
@@ -519,231 +629,266 @@ export default function ProductManagement() {
       </div>
 
       {showForm && (
-        <div className="mb-8 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6">
-          <h3 className="text-xl font-bold mb-4 text-gray-800">
-            Thêm Product mới
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Tên sản phẩm <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="VD: iPhone 15 Pro Max 256GB"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Cấu hình tóm tắt <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="configuration_summary"
-                  value={formData.configuration_summary}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="VD: A17 Pro, 8GB RAM, 256GB"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Product Model <span className="text-red-500">*</span>
-                </label>
-                <select
-                  name="productModelId"
-                  value={formData.productModelId}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[95vh] overflow-hidden flex flex-col my-8">
+            <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold">
+                  ➕ Thêm Product mới
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleCancelForm}
+                  className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                  disabled={submitLoading}
                 >
-                  <option value="">Chọn Product Model</option>
-                  {productModels.map((model) => (
-                    <option key={model.id} value={model.id}>{model.name}</option>
-                  ))}
-                </select>
+                  ✕
+                </button>
               </div>
+            </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Giá <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  name="price"
-                  value={formData.price}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="VD: 29990000"
-                  required
-                />
-              </div>
+            <div className="overflow-y-auto flex-1">
+              <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Tên sản phẩm <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="VD: iPhone 15 Pro Max 256GB"
+                    required
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Số lượng trong kho
-                </label>
-                <input
-                  type="number"
-                  name="stock"
-                  value={formData.stock}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="VD: 100"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Cấu hình tóm tắt <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="configuration_summary"
+                    value={formData.configuration_summary}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="VD: A17 Pro, 8GB RAM, 256GB"
+                    required
+                  />
+                </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Hình ảnh
-                </label>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                {images.length > 0 && (
-                  <div className="mt-4">
-                    <p className="text-sm font-semibold text-gray-700 mb-3">
-                      {images.length} ảnh đã chọn - Click vào ảnh để chọn làm ảnh chính
-                    </p>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {images.map((image, index) => (
-                        <div
-                          key={index}
-                          onClick={() => setPrimaryImageIndex(index)}
-                          className={`relative cursor-pointer rounded-lg overflow-hidden border-4 transition-all ${
-                            primaryImageIndex === index
-                              ? "border-blue-500 shadow-lg"
-                              : "border-gray-200 hover:border-blue-300"
-                          }`}
-                        >
-                          <img
-                            src={URL.createObjectURL(image)}
-                            alt={`Preview ${index + 1}`}
-                            className="w-full h-32 object-cover"
+                <div ref={formProductModelDropdownRef}>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Product Model <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formProductModelSearch}
+                      onChange={(e) => handleFormProductModelSearch(e.target.value)}
+                      onFocus={() => setShowFormProductModelDropdown(true)}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="🔍 Tìm kiếm Product Model..."
+                      required
+                    />
+                    {showFormProductModelDropdown && getFilteredFormProductModels().length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {getFilteredFormProductModels().map((model) => (
+                          <div
+                            key={model.id}
+                            onClick={() => handleSelectFormProductModel(model)}
+                            className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          >
+                            <p className="font-medium text-gray-800">{model.name}</p>
+                            {model.category && (
+                              <p className="text-xs text-gray-500">
+                                {model?.category} • {model?.brand || 'N/A'}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Giá <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="price"
+                    value={formData.price}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="VD: 29990000"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Số lượng trong kho <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="stock"
+                    value={formData.stock}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="VD: 100"
+                    min="0"
+                    required
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Hình ảnh
+                  </label>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {images.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-sm font-semibold text-gray-700 mb-3">
+                        {images.length} ảnh đã chọn - Click vào ảnh để chọn làm ảnh chính
+                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {images.map((image, index) => (
+                          <div
+                            key={index}
+                            onClick={() => setPrimaryImageIndex(index)}
+                            className={`relative cursor-pointer rounded-lg overflow-hidden border-4 transition-all ${primaryImageIndex === index
+                                ? "border-blue-500 shadow-lg"
+                                : "border-gray-200 hover:border-blue-300"
+                              }`}
+                          >
+                            <img
+                              src={URL.createObjectURL(image)}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-32 object-contain"
+                            />
+                            {primaryImageIndex === index && (
+                              <div className="absolute top-0 right-0 bg-blue-500 text-white px-2 py-1 text-xs font-bold rounded-bl-lg">
+                                ẢNH CHÍNH
+                              </div>
+                            )}
+                            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-center text-xs py-1">
+                              {image.name}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Mô tả <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Mô tả chi tiết về sản phẩm"
+                    rows="4"
+                    required
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Thuộc tính (Attributes)
+                  </label>
+                  <div className="space-y-2">
+                    {formData.attributes.map((attr, idx) => (
+                      <div
+                        key={idx}
+                        className="flex gap-2 items-start"
+                        ref={el => attributeDropdownRefs.current[idx] = el}
+                      >
+                        <div className="flex-1 relative">
+                          <input
+                            type="text"
+                            placeholder="Key (VD: Màn hình, RAM, ...)"
+                            value={attr.key || ''}
+                            onChange={e => handleAttributeChange(idx, "key", e.target.value)}
+                            onFocus={() => setShowAttributeDropdown(prev => ({ ...prev, [idx]: true }))}
+                            className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
-                          {primaryImageIndex === index && (
-                            <div className="absolute top-0 right-0 bg-blue-500 text-white px-2 py-1 text-xs font-bold rounded-bl-lg">
-                              ẢNH CHÍNH
+                          {showAttributeDropdown[idx] && getFilteredAttributes(idx).length > 0 && (
+                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                              {getFilteredAttributes(idx).map((attribute) => (
+                                <div
+                                  key={attribute.id}
+                                  onClick={() => handleSelectAttribute(idx, attribute.name)}
+                                  className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                >
+                                  <p className="font-medium text-gray-800">{attribute.name}</p>
+                                </div>
+                              ))}
                             </div>
                           )}
-                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-center text-xs py-1">
-                            {image.name}
-                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Mô tả <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Mô tả chi tiết về sản phẩm"
-                  rows="4"
-                  required
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Thuộc tính (Attributes)
-                </label>
-                <div className="space-y-2">
-                  {formData.attributes.map((attr, idx) => (
-                    <div 
-                      key={idx} 
-                      className="flex gap-2 items-start"
-                      ref={el => attributeDropdownRefs.current[idx] = el}
-                    >
-                      <div className="flex-1 relative">
-                        <input
-                          type="text"
-                          placeholder="Key (VD: Màn hình, RAM, ...)"
-                          value={attr.key || ''}
-                          onChange={e => handleAttributeChange(idx, "key", e.target.value)}
-                          onFocus={() => setShowAttributeDropdown(prev => ({ ...prev, [idx]: true }))}
-                          className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        <textarea
+                          placeholder="Value"
+                          value={attr.value || ''}
+                          onChange={e => handleAttributeChange(idx, "value", e.target.value)}
+                          className="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-pre-wrap"
+                          rows={2}
                         />
-                        {showAttributeDropdown[idx] && getFilteredAttributes(idx).length > 0 && (
-                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                            {getFilteredAttributes(idx).map((attribute) => (
-                              <div
-                                key={attribute.id}
-                                onClick={() => handleSelectAttribute(idx, attribute.name)}
-                                className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                              >
-                                <p className="font-medium text-gray-800">{attribute.name}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAttribute(idx)}
+                          className="text-red-500 hover:text-red-700 font-bold text-xl px-2 py-2"
+                        >
+                          ✕
+                        </button>
                       </div>
-                      <input
-                        type="text"
-                        placeholder="Value"
-                        value={attr.value || ''}
-                        onChange={e => handleAttributeChange(idx, "value", e.target.value)}
-                        className="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <button 
-                        type="button" 
-                        onClick={() => handleRemoveAttribute(idx)} 
-                        className="text-red-500 hover:text-red-700 font-bold text-xl px-2 py-2"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                  <button type="button" onClick={handleAddAttribute} className="mt-2 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">+ Thêm thuộc tính</button>
+                    ))}
+                    <button type="button" onClick={handleAddAttribute} className="mt-2 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">+ Thêm thuộc tính</button>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg font-medium hover:shadow-lg transition-all flex items-center justify-center"
-                disabled={submitLoading}
-              >
-                {submitLoading ? (
-                  <>
-                    <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white inline-block mr-2"></span>
-                    Đang gửi...
-                  </>
-                ) : (
-                  "Thêm mới"
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelForm}
-                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-all"
-                disabled={submitLoading}
-              >
-                Hủy
-              </button>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCancelForm}
+                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-all"
+                  disabled={submitLoading}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg font-medium hover:shadow-lg transition-all flex items-center justify-center"
+                  disabled={submitLoading}
+                >
+                  {submitLoading ? (
+                    <>
+                      <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white inline-block mr-2"></span>
+                      Đang gửi...
+                    </>
+                  ) : (
+                    "Thêm mới"
+                  )}
+                </button>
+              </div>
+            </form>
             </div>
-          </form>
+          </div>
         </div>
       )}
 
@@ -759,145 +904,143 @@ export default function ProductManagement() {
       ) : (
         <>
           <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b-2 border-gray-200">
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Hình ảnh</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Tên</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Cấu hình</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Giá</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Tồn kho</th>
-                <th className="text-center py-3 px-4 font-semibold text-gray-700">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((product) => (
-                <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4">
-                    <img
-                      src={product.imagePrimary || "https://via.placeholder.com/60"}
-                      alt={product.name}
-                      className="w-16 h-16 object-cover rounded-lg"
-                    />
-                  </td>
-                  <td className="py-3 px-4">
-                    <p className="font-medium text-gray-800">{product.name}</p>
-                    {product.productModel && (
-                      <p className="text-xs text-gray-500">Model: {product.productModel.name}</p>
-                    )}
-                  </td>
-                  <td className="py-3 px-4">
-                    <p className="text-sm text-gray-600">{product.configurationSummary}</p>
-                  </td>
-                  <td className="py-3 px-4">
-                    <p className="font-semibold text-gray-800">
-                      {product.price?.toLocaleString("vi-VN")}₫
-                    </p>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded-full text-sm ${
-                      product.stock > 10 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                    }`}>
-                      {product.stock || 0}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex justify-center gap-2">
-                      <button
-                        onClick={() => handleEdit(product)}
-                        className="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-all"
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        onClick={() => handleDelete(product.id)}
-                        className="px-3 py-1 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition-all"
-                      >
-                        Xóa
-                      </button>
-                    </div>
-                  </td>
+            <table className="w-full">
+              <thead>
+                <tr className="border-b-2 border-gray-200">
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Hình ảnh</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Tên</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Cấu hình</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Giá</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Tồn kho</th>
+                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Thao tác</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {products.map((product) => (
+                  <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4">
+                      <img
+                        src={product.imagePrimary || "https://via.placeholder.com/60"}
+                        alt={product.name}
+                        className="w-16 h-16 object-contain rounded-lg"
+                      />
+                    </td>
+                    <td className="py-3 px-4">
+                      <p className="font-medium text-gray-800">{product.name}</p>
+                      {product.productModel && (
+                        <p className="text-xs text-gray-500">Model: {product.productModel.name}</p>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">
+                      <p className="text-sm text-gray-600">{product.configurationSummary}</p>
+                    </td>
+                    <td className="py-3 px-4">
+                      <p className="font-semibold text-gray-800">
+                        {product.price?.toLocaleString("vi-VN")}₫
+                      </p>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-1 rounded-full text-sm ${product.stock > 10 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                        }`}>
+                        {product.stock || 0}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => handleEdit(product)}
+                          className="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-all"
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product.id)}
+                          className="px-3 py-1 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition-all"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-        {/* Pagination - Always show if there are items */}
-        {products.length > 0 && (
-          <div className="mt-6 flex flex-col gap-3">
-            {/* Page info */}
-            <div className="text-center text-sm text-gray-600">
-              Trang {currentPage + 1} / {totalPages > 0 ? totalPages : 1}
-            </div>
-            
-            {/* Pagination controls */}
-            <div className="flex justify-center items-center gap-2 flex-wrap">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
-                disabled={currentPage === 0}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                ← Trước
-              </button>
-              
-              <div className="flex gap-1 flex-wrap">
-                {totalPages > 0 && [...Array(totalPages)].map((_, index) => {
-                  // Show first page, last page, current page, and pages around current
-                  if (
-                    index === 0 ||
-                    index === totalPages - 1 ||
-                    (index >= currentPage - 1 && index <= currentPage + 1)
-                  ) {
-                    return (
-                      <button
-                        key={index}
-                        onClick={() => setCurrentPage(index)}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                          currentPage === index
-                            ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
-                      >
-                        {index + 1}
-                      </button>
-                    );
-                  } else if (index === currentPage - 2 || index === currentPage + 2) {
-                    return <span key={index} className="px-2 py-2">...</span>;
-                  }
-                  return null;
-                })}
+          {/* Pagination - Always show if there are items */}
+          {products.length > 0 && (
+            <div className="mt-6 flex flex-col gap-3">
+              {/* Page info */}
+              <div className="text-center text-sm text-gray-600">
+                Trang {currentPage + 1} / {totalPages > 0 ? totalPages : 1}
               </div>
 
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
-                disabled={currentPage >= totalPages - 1}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Sau →
-              </button>
-            </div>
+              {/* Pagination controls */}
+              <div className="flex justify-center items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                  disabled={currentPage === 0}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ← Trước
+                </button>
 
-            {/* Page size selector */}
-            <div className="flex justify-center items-center gap-2 text-sm">
-              <span className="text-gray-600">Số item mỗi trang:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setCurrentPage(0);
-                }}
-                className="px-3 py-1 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
+                <div className="flex gap-1 flex-wrap">
+                  {totalPages > 0 && [...Array(totalPages)].map((_, index) => {
+                    // Show first page, last page, current page, and pages around current
+                    if (
+                      index === 0 ||
+                      index === totalPages - 1 ||
+                      (index >= currentPage - 1 && index <= currentPage + 1)
+                    ) {
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentPage(index)}
+                          className={`px-4 py-2 rounded-lg font-medium transition-all ${currentPage === index
+                              ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                        >
+                          {index + 1}
+                        </button>
+                      );
+                    } else if (index === currentPage - 2 || index === currentPage + 2) {
+                      return <span key={index} className="px-2 py-2">...</span>;
+                    }
+                    return null;
+                  })}
+                </div>
+
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                  disabled={currentPage >= totalPages - 1}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Sau →
+                </button>
+              </div>
+
+              {/* Page size selector */}
+              <div className="flex justify-center items-center gap-2 text-sm">
+                <span className="text-gray-600">Số item mỗi trang:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(0);
+                  }}
+                  className="px-3 py-1 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
             </div>
-          </div>
-        )}
-      </>
+          )}
+        </>
       )}
     </div>
   );

@@ -1,9 +1,13 @@
 export default function AdminSidebar({ activeTab, setActiveTab }) {
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: "📊" },
-    { id: "product-models", label: "Model sản phẩm", icon: "📋" },
+    { id: "orders", label: "Đơn hàng", icon: "🛒" },
+    { id: "categories", label: "Danh mục", icon: "🏷️" },
+    { id: "brands", label: "Thương hiệu", icon: "©️" },
+    { id: "banners", label: "Banner", icon: "🖼️" },
+    { id: "product-models", label: "Nhóm sản phẩm", icon: "📋" },
     { id: "products", label: "Sản phẩm", icon: "📦" },
-    { id: "product-variants", label: "Biến thể sản phẩm", icon: "🎨" },
+    { id: "promotions", label: "Mã giảm giá", icon: "🎫" }
   ];
 
   return (

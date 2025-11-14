@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import CategoryDropDown from "./CategoryDropDown";
 import UserDropdown from "./UserDropDown";
+import { ACCESS_TOKEN } from "../../constants";
 
+const API = import.meta.env.VITE_API_URL;
 
 function Header() {
   const [user, setUser] = useState(() => {
@@ -13,6 +16,40 @@ function Header() {
   });
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const verifyToken = async () => {
+      const existingToken = sessionStorage.getItem(ACCESS_TOKEN);
+      if (existingToken) {
+        setUser({ name: sessionStorage.getItem("username") });
+        return;
+      }
+      try {
+        const response = await axios.post(
+          `${API}/api/v1/users/refresh-token`,
+          {},
+          {
+            withCredentials: true,
+          }
+        );
+
+        const newToken = response.data.data.token;
+        if (newToken) {
+          sessionStorage.setItem(ACCESS_TOKEN, newToken);
+          sessionStorage.setItem("username", response.data.data.username);
+          sessionStorage.setItem("userId", response.data.data.userId);
+          setUser({ name: response.data.data.username });
+        }
+      } catch (error) {
+        sessionStorage.removeItem(ACCESS_TOKEN);
+        sessionStorage.removeItem("username");
+        sessionStorage.removeItem("userId");
+        setUser(null);
+      }
+    };
+
+    verifyToken();
+  }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();

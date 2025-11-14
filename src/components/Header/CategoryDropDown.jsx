@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function CategoryDropDown() {
   const [openCategory, setOpenCategory] = useState(false);
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
 
   const categories = [
     { id: 1, name: "Laptop" },
@@ -10,9 +12,8 @@ export default function CategoryDropDown() {
     { id: 3, name: "Ổ cứng" },
     { id: 4, name: "Ram" },
     { id: 5, name: "Loa" },
-    { id: 6, name: "Micro" },
-    { id: 7, name: "Webcam" },
-    { id: 8, name: "Màn hình" }
+    { id: 6, name: "Webcam" },
+    { id: 7, name: "Màn hình" }
   ]
 // Đóng dropdown khi click ra ngoài
   useEffect(() => {
@@ -26,6 +27,11 @@ export default function CategoryDropDown() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  const handleCategoryClick = (categoryName) => {
+    navigate(`/category?category=${encodeURIComponent(categoryName)}`);
+    setOpenCategory(false);
+  };
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -44,7 +50,8 @@ export default function CategoryDropDown() {
             {categories.map((item) => (
               <li
                 key={item.id}
-                className="px-4 py-2 text-sm text-gray-700 hover:bg-slate-100 cursor-pointer"
+                onClick={() => handleCategoryClick(item.name)}
+                className="px-4 py-2 text-sm text-gray-700 hover:bg-slate-100 cursor-pointer transition-colors"
               >
                 {item.name}
               </li>

@@ -99,7 +99,7 @@ export default function ProfileInfo({
             </div>
             <div className="py-4 border-b border-gray-200">
               <div className="text-sm text-gray-500 mb-1">Số điện thoại:</div>
-              <div className="font-medium">{formData.phone || 'Chưa cập nhật'}</div>
+              <div className="font-medium">{formData.phoneNumber || 'Chưa cập nhật'}</div>
             </div>
             <div className="py-4 border-b border-gray-200">
               <div className="text-sm text-gray-500 mb-1">Email:</div>
@@ -141,7 +141,7 @@ export default function ProfileInfo({
                 <input
                   type="tel"
                   name="phone"
-                  value={formData.phone}
+                  value={formData.phoneNumber}
                   onChange={handleChange}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                   placeholder="Nhập số điện thoại"

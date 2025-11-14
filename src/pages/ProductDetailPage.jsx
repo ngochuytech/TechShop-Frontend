@@ -6,11 +6,13 @@ import Footer from '../components/Footer/Footer';
 import axios from "axios";
 import api from '../api';
 import { toast } from 'react-toastify';
+import { ACCESS_TOKEN } from "../constants";
 
 const API = import.meta.env.VITE_API_URL;
 
 const ProductDetailPage = () => {
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [selectedReviewFilter, setSelectedReviewFilter] = useState(null); // null: tất cả, 1-5: star
   const { id, category } = useParams();
   const navigate = useNavigate();
@@ -39,6 +41,12 @@ const ProductDetailPage = () => {
   const [reviewTotalPages, setReviewTotalPages] = useState(1);
   const [loadingReviews, setLoadingReviews] = useState(false);
 
+  // Check if user is logged in
+  useEffect(() => {
+  const token = sessionStorage.getItem(ACCESS_TOKEN);
+    setIsLoggedIn(!!token);
+  }, []);
+
   useEffect(() => {
     fetchProductById(id);
     fetchSimilarProducts(id);
@@ -47,8 +55,8 @@ const ProductDetailPage = () => {
   }, [id]);
 
   useEffect(() => {
-    if (product && product.product_model_id) {
-      fetchconfigurations(product.product_model_id, product.id);
+    if (product && product.productModel?.id) {
+      fetchconfigurations(product.productModel?.id, product.id);
     }
   }, [product]);
 
@@ -127,6 +135,7 @@ const ProductDetailPage = () => {
     setLoadingConfigurations(true);
     try {
       const res = await axios.get(`${API}/api/v1/products/product-model/${productModelId}`);
+      
       const configurations = res.data || [];
       setConfigurations(configurations);
     } catch (e) {
@@ -228,6 +237,12 @@ const ProductDetailPage = () => {
   };
 
   const handleOpenReviewModal = () => {
+    // Kiểm tra đăng nhập
+    if (!isLoggedIn) {
+      toast.warning('Vui lòng đăng nhập để đánh giá sản phẩm!');
+      setTimeout(() => navigate('/auth'), 1500);
+      return;
+    }
 
     setReviewData({
       rating: 0,
@@ -295,6 +310,12 @@ const ProductDetailPage = () => {
   };
 
   const handleAddToCart = async () => {
+    if (!isLoggedIn) {
+      toast.warning('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng!');
+      setTimeout(() => navigate('/auth'), 1500);
+      return;
+    }
+
     try {
       let requestBody = { quantity: 1 };
       let productName = product.name;
@@ -336,8 +357,10 @@ const ProductDetailPage = () => {
     }
   };
 
-  // Kiểm tra trạng thái yêu thích khi load sản phẩm
+  // Kiểm tra trạng thái yêu thích khi load sản phẩm - chỉ khi đã đăng nhập
   useEffect(() => {
+    if (!isLoggedIn) return;
+    
     const fetchFavoriteStatus = async () => {
       try {
         const res = await api.get(`${API}/api/v1/customer/favourites/product/${id}`);
@@ -347,7 +370,7 @@ const ProductDetailPage = () => {
       }
     };
     if (id) fetchFavoriteStatus();
-  }, [id]);
+  }, [id, isLoggedIn]);
 
   return (
     <div className="min-h-screen bg-gray-50 mt-[46px]">
@@ -370,23 +393,25 @@ const ProductDetailPage = () => {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-gray-900">{product.name}</h1>
-                <button
-                  onClick={handleToggleFavorite}
-                  className="ml-2 p-2 rounded-full hover:bg-red-100 transition-colors"
-                  aria-label={isFavorite ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    className={`w-6 h-6 ${isFavorite ? 'text-red-500' : 'text-black'}`}
-                    fill={isFavorite ? 'currentColor' : 'none'}
-                    stroke={isFavorite ? 'none' : 'currentColor'}
-                    strokeWidth={1.5}
-                    aria-hidden="true"
+                {isLoggedIn && (
+                  <button
+                    onClick={handleToggleFavorite}
+                    className="ml-2 p-2 rounded-full hover:bg-red-100 transition-colors"
+                    aria-label={isFavorite ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
-                  </svg>
-                </button>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      className={`w-6 h-6 ${isFavorite ? 'text-red-500' : 'text-black'}`}
+                      fill={isFavorite ? 'currentColor' : 'none'}
+                      stroke={isFavorite ? 'none' : 'currentColor'}
+                      strokeWidth={1.5}
+                      aria-hidden="true"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+                    </svg>
+                  </button>
+                )}
               </div>
 
 
@@ -440,7 +465,7 @@ const ProductDetailPage = () => {
                       {Object.entries(product.attributes).map(([key, value], index) => (
                         <tr key={index}>
                           <th className="px-4 py-2 border border-gray-300 bg-gray-100 text-gray-600 font-medium">{key}</th>
-                          <td className="px-4 py-2 border border-gray-300 text-gray-900">{value}</td>
+                          <td className="px-4 py-2 border border-gray-300 text-gray-900 whitespace-pre-wrap">{value}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -571,7 +596,7 @@ const ProductDetailPage = () => {
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
                     </svg>
-                    Thông tin vận chuyển
+                    Địa chỉ cửa hàng
                   </div>
                   <div className="flex mt-2 text-blue-600 text-sm gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
@@ -603,41 +628,64 @@ const ProductDetailPage = () => {
                 )}
 
 
-                <div className='grid grid-cols-2 gap-4'>
-                  <button
-                    className='text-white bg-red-600 hover:bg-red-700 transition-colors font-semibold py-3 rounded-lg'
-                    onClick={() => {
-                      const selectedVariant = product.selectedVariant || null;
-                      navigate('/checkout', {
-                        state: {
-                          selectedItems: [{
-                            id: product.id,
-                            productVariantId: selectedVariant ? selectedVariant.id : null,
-                            productName: product.name,
-                            price: selectedVariant ? selectedVariant.price : product.price,
-                            image: selectedVariant ? selectedVariant.image : (product.images && product.images[0]),
-                            variant: selectedVariant,
-                            configuration_summary: product.configuration_summary || '',
-                            quantity: 1,
-                          }],
-                          total: selectedVariant ? selectedVariant.price : product.price,
-                        }
-                      });
-                    }}
-                  >
-                    Mua ngay
-                  </button>
-                  <button
-                    className='flex justify-center text-red-600 border border-red-600 hover:bg-red-50 transition-colors font-semibold py-3 rounded-lg'
-                    onClick={handleAddToCart}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
-                    </svg>
+                {(() => {
+                  const selectedVariant = product.selectedVariant || null;
+                  const currentStock = selectedVariant ? selectedVariant.stock : product.stock;
+                  const isOutOfStock = currentStock === 0 || currentStock === undefined;
 
-                    Thêm vào giỏ hàng
-                  </button>
-                </div>
+                  if (isOutOfStock) {
+                    return (
+                      <div className='bg-gray-200 text-gray-600 font-semibold py-3 rounded-lg text-center'>
+                        Tạm hết hàng
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className='grid grid-cols-2 gap-4'>
+                      <button
+                        className='text-white bg-red-600 hover:bg-red-700 transition-colors font-semibold py-3 rounded-lg'
+                        onClick={() => {
+                          // Kiểm tra đăng nhập
+                          if (!isLoggedIn) {
+                            toast.warning('Vui lòng đăng nhập để mua hàng!');
+                            setTimeout(() => navigate('/auth'), 1500);
+                            return;
+                          }
+
+                          navigate('/checkout', {
+                            state: {
+                              selectedItems: [{
+                                id: product.id,
+                                productId: product.id,
+                                productVariantId: selectedVariant ? selectedVariant.id : null,
+                                productName: product.name,
+                                price: selectedVariant ? selectedVariant.price : product.price,
+                                image: selectedVariant ? selectedVariant.image : (product.images && product.images[0]),
+                                variant: selectedVariant,
+                                configuration_summary: product.configuration_summary || '',
+                                quantity: 1,
+                              }],
+                              total: selectedVariant ? selectedVariant.price : product.price,
+                            }
+                          });
+                        }}
+                      >
+                        Mua ngay
+                      </button>
+                      <button
+                        className='flex justify-center text-red-600 border border-red-600 hover:bg-red-50 transition-colors font-semibold py-3 rounded-lg'
+                        onClick={handleAddToCart}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+                        </svg>
+
+                        Thêm vào giỏ hàng
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 <div className="border border-gray-300 rounded-lg mt-4 bg-gray-50">
                   <div className="p-4 text-gray-700">
@@ -807,13 +855,6 @@ const ProductDetailPage = () => {
                 }}
               >
                 Tất cả
-              </button>
-              {/* Có hình ảnh, Đã mua hàng: giữ nguyên, chưa có API */}
-              <button className="bg-gray-100 text-gray-600 px-4 py-2 rounded-full text-sm hover:bg-gray-200">
-                Có hình ảnh
-              </button>
-              <button className="bg-gray-100 text-gray-600 px-4 py-2 rounded-full text-sm hover:bg-gray-200">
-                Đã mua hàng
               </button>
               {[5, 4, 3, 2, 1].map(star => (
                 <button

@@ -50,9 +50,12 @@ api.interceptors.response.use(
             }
           )
           .then((response) => {
-            const newToken = response.data.data;
+            const newToken = response.data.data.token;
+            
             if (newToken) {
               sessionStorage.setItem(ACCESS_TOKEN, newToken);
+              sessionStorage.setItem("username", response.data.data.username);
+              sessionStorage.setItem("userId", response.data.data.userId);
             }
             return newToken;
           })

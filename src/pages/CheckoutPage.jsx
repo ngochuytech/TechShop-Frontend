@@ -87,7 +87,7 @@ export default function CheckoutPage() {
 
   const fetchAvaliableVouchers = async () => {
     try {
-      const response = await axios.get(`${API}/api/v1/promotions/available`);
+      const response = await api.get(`${API}/api/v1/promotions/available`);
 
       setAvailableVouchers(response.data.data);
     } catch (error) {
@@ -129,13 +129,16 @@ export default function CheckoutPage() {
   const calculateDiscount = () => {
     if (!selectedVoucher) return 0;
 
-    if (selectedVoucher.type === "FIXED") {
-      return selectedVoucher.discount;
-    } else if (selectedVoucher.type === "SHIPPING") {
+    const discountType = selectedVoucher.discountType;
+    const discountValue = selectedVoucher.discountValue;
+
+    if (discountType === "FIXED") {
+      return discountValue;
+    } else if (discountType === "SHIPPING") {
       // Nếu là mã freeship, giảm tối đa bằng phí ship
-      return Math.min(selectedVoucher.discount, shippingFee);
-    } else if (selectedVoucher.type === "PERCENTAGE") {
-      const discountAmount = (total * selectedVoucher.discount) / 100;
+      return Math.min(discountValue, shippingFee);
+    } else if (discountType === "PERCENTAGE") {
+      const discountAmount = (total * discountValue) / 100;
       if (selectedVoucher.maxDiscount) {
         return Math.min(discountAmount, selectedVoucher.maxDiscount);
       }
@@ -147,8 +150,8 @@ export default function CheckoutPage() {
   const finalTotal = total + shippingFee - calculateDiscount();
 
   const handleSelectVoucher = (voucher) => {
-    if (total < voucher.minOrder) {
-      toast.warning(`Đơn hàng tối thiểu ${formatPrice(voucher.minOrder)} để áp dụng mã này!`);
+    if (total < voucher.minOrderValue) {
+      toast.warning(`Đơn hàng tối thiểu ${formatPrice(voucher.minOrderValue)} để áp dụng mã này!`);
       return;
     }
     setSelectedVoucher(voucher);
@@ -504,48 +507,6 @@ export default function CheckoutPage() {
                       <p className="text-sm text-gray-600">Thanh toán bằng tiền mặt khi nhận hàng</p>
                     </div>
                   </div>
-
-                  <div
-                    onClick={() => setSelectedPaymentMethod("BANK_TRANSFER")}
-                    className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-colors ${selectedPaymentMethod === "BANK_TRANSFER"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-300 hover:border-blue-300"
-                      }`}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="BANK_TRANSFER"
-                      checked={selectedPaymentMethod === "BANK_TRANSFER"}
-                      onChange={() => setSelectedPaymentMethod("BANK_TRANSFER")}
-                      className="w-5 h-5 accent-blue-600"
-                    />
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900">Chuyển khoản ngân hàng</p>
-                      <p className="text-sm text-gray-600">Thanh toán qua chuyển khoản</p>
-                    </div>
-                  </div>
-
-                  <div
-                    onClick={() => setSelectedPaymentMethod("VNPAY")}
-                    className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-colors ${selectedPaymentMethod === "VNPAY"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-300 hover:border-blue-300"
-                      }`}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="VNPAY"
-                      checked={selectedPaymentMethod === "VNPAY"}
-                      onChange={() => setSelectedPaymentMethod("VNPAY")}
-                      className="w-5 h-5 accent-blue-600"
-                    />
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900">Thanh toán qua VNPay</p>
-                      <p className="text-sm text-gray-600">Thanh toán qua ví điện tử VNPay</p>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -689,7 +650,7 @@ export default function CheckoutPage() {
             <div className="p-6 overflow-y-auto max-h-[calc(80vh-140px)]">
               <div className="space-y-4">
                 {availableVouchers.map((voucher) => {
-                  const isEligible = total >= voucher.minOrder;
+                  const isEligible = total >= voucher.minOrderValue;
                   const isSelected = selectedVoucher?.id === voucher.id;
 
                   return (
@@ -715,11 +676,14 @@ export default function CheckoutPage() {
                             <span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">
                               {voucher.code}
                             </span>
-                            {voucher.type === "percent" && (
-                              <span className="text-red-600 font-bold">-{voucher.discount}%</span>
+                            {voucher.discountType === "PERCENTAGE" && (
+                              <span className="text-red-600 font-bold">-{voucher.discountValue}%</span>
                             )}
-                            {voucher.type === "fixed" && (
-                              <span className="text-red-600 font-bold">-{formatPrice(voucher.discount)}</span>
+                            {voucher.discountType === "FIXED" && (
+                              <span className="text-red-600 font-bold">-{formatPrice(voucher.discountValue)}</span>
+                            )}
+                            {voucher.discountType === "SHIPPING" && (
+                              <span className="text-red-600 font-bold">Freeship</span>
                             )}
                           </div>
 
@@ -727,10 +691,10 @@ export default function CheckoutPage() {
                           <p className="text-sm text-gray-600 mb-2">{voucher.description}</p>
 
                           <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-500">HSD: {new Date(voucher.expiry).toLocaleString('vi-VN')}</span>
+                            <span className="text-xs text-gray-500">HSD: {new Date(voucher.endTime).toLocaleString('vi-VN')}</span>
                             {!isEligible && (
                               <span className="text-xs text-red-500 font-medium">
-                                Cần thêm {formatPrice(voucher.minOrder - total)}
+                                Cần thêm {formatPrice(voucher.minOrderValue - total)}
                               </span>
                             )}
                             {isSelected && (

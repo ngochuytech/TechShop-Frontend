@@ -91,19 +91,11 @@ export default function Footer() {
               ))}
             </ul>
 
-            <h3 className="text-lg font-bold mt-6 mb-4">Phương thức thanh toán</h3>
-            <div className="flex flex-wrap gap-2">
-              <span className="bg-gray-100 rounded p-2">Visa</span>
-              <span className="bg-gray-100 rounded p-2">Mastercard</span>
-              <span className="bg-gray-100 rounded p-2">MOMO</span>
-              <span className="bg-gray-100 rounded p-2">VNPay</span>
-              <span className="bg-gray-100 rounded p-2">COD</span>
-            </div>
           </div>
         </div>
 
         <div className="border-t mt-8 pt-8 text-center text-gray-600">
-          <p>© 2025 TechStore. Tất cả quyền được bảo lưu.</p>
+          <p>© 2025 TechStore. Nguyễn Văn Ngọc Huy.</p>
         </div>
       </div>
     </footer>

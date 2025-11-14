@@ -25,6 +25,12 @@ export default function ProductEditPage() {
   const [selectedProductModel, setSelectedProductModel] = useState(null);
   const productModelDropdownRef = useRef(null);
 
+  // Attribute states
+  const [attributes, setAttributes] = useState([]);
+  const [showAttributeDropdown, setShowAttributeDropdown] = useState({});
+  const [attributeSearchQuery, setAttributeSearchQuery] = useState({});
+  const attributeDropdownRefs = useRef({});
+
   const [formData, setFormData] = useState({
     name: "",
     configuration_summary: "",
@@ -67,8 +73,25 @@ export default function ProductEditPage() {
     };
   }, []);
 
+  // Click outside handler for attribute dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      Object.entries(attributeDropdownRefs.current).forEach(([idx, ref]) => {
+        if (ref && !ref.contains(event.target)) {
+          setShowAttributeDropdown(prev => ({ ...prev, [idx]: false }));
+        }
+      });
+    };
+
+    if (Object.keys(showAttributeDropdown).some(key => showAttributeDropdown[key])) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showAttributeDropdown]);
+
   useEffect(() => {
     fetchProductModels();
+    fetchAttributes();
     if (productId) {
       fetchProduct();
       fetchVariants();
@@ -88,7 +111,7 @@ export default function ProductEditPage() {
       const attrs = product.attributes
         ? Object.entries(product.attributes).map(([key, value]) => ({ key, value }))
         : [];
-
+    
       // imagePrimary lên đầu, các ảnh khác theo sau
       let sortedImages = [];
       if (product.images && product.images.length > 0) {
@@ -136,7 +159,7 @@ export default function ProductEditPage() {
 
   const fetchProductModels = async () => {
     try {
-      const response = await axios.get(`${API}/api/v1/admin/product-models/search`);
+      const response = await api.get(`${API}/api/v1/admin/product-models/search`);
       const data = response.data.data || response.data;
       setProductModels(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -144,10 +167,21 @@ export default function ProductEditPage() {
     }
   };
 
+  const fetchAttributes = async () => {
+    try {
+      const response = await api.get(`${API}/api/v1/admin/attributes/list`);
+      setAttributes(response.data.data || []);
+      
+    } catch (error) {
+      console.error("Error fetching attributes:", error);
+      setAttributes([]);
+    }
+  };
+
   const fetchVariants = async () => {
     try {
       setVariantsLoading(true);
-      const response = await axios.get(`${API}/api/v1/admin/product-variants/product/${productId}`);
+      const response = await api.get(`${API}/api/v1/admin/product-variants/product/${productId}`);
       const data = response.data.data || response.data;
       setVariants(Array.isArray(data.content) ? data.content : []);
     } catch (error) {
@@ -191,9 +225,42 @@ export default function ProductEditPage() {
   const handleAttributeChange = (idx, field, value) => {
     setFormData((prev) => {
       const newAttrs = [...prev.attributes];
-      newAttrs[idx][field] = value;
+      newAttrs[idx][field] = value || "";
       return { ...prev, attributes: newAttrs };
     });
+  };
+
+  const handleAttributeSearchChange = (idx, value) => {
+    setAttributeSearchQuery(prev => ({ ...prev, [idx]: value }));
+    setShowAttributeDropdown(prev => ({ ...prev, [idx]: true }));
+  };
+
+  const handleSelectAttribute = (idx, attributeKey) => {
+    setFormData((prev) => {
+      const newAttrs = [...prev.attributes];
+      newAttrs[idx].key = attributeKey || "";
+      return { ...prev, attributes: newAttrs };
+    });
+    setAttributeSearchQuery(prev => ({ ...prev, [idx]: "" }));
+    setShowAttributeDropdown(prev => ({ ...prev, [idx]: false }));
+  };
+
+  const getFilteredAttributes = (idx) => {
+    const usedKeys = formData.attributes
+      .map((attr, i) => (i !== idx ? attr.key : null))
+      .filter(Boolean);
+    
+    let filtered = attributes.filter(attr => !usedKeys.includes(attr.name));
+    
+    // Apply search query if exists
+    const searchQuery = attributeSearchQuery[idx] || "";
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(attr => 
+        (attr.name && attr.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    }
+    
+    return filtered;
   };
 
   const handleAddAttribute = () => {
@@ -207,6 +274,16 @@ export default function ProductEditPage() {
     setFormData((prev) => {
       const newAttrs = prev.attributes.filter((_, i) => i !== idx);
       return { ...prev, attributes: newAttrs };
+    });
+    setShowAttributeDropdown(prev => {
+      const newState = { ...prev };
+      delete newState[idx];
+      return newState;
+    });
+    setAttributeSearchQuery(prev => {
+      const newState = { ...prev };
+      delete newState[idx];
+      return newState;
     });
   };
 
@@ -254,11 +331,28 @@ export default function ProductEditPage() {
       return;
     }
 
+    if (!hasVariants && (parseInt(formData.price) < 0 || parseInt(formData.stock) < 0)) {
+      toast.error("Giá và số lượng không được âm");
+      return;
+    }    
+
+    // Validate attributes - không cho phép key hoặc value bỏ trống
+    const hasEmptyAttribute = formData.attributes.some(attr => {
+      if (attr.key && (!attr.value || !attr.value.trim()==="")) return true;
+      if ((!attr.key || !attr.key.trim()==="") && attr.value) return true;
+      return false;
+    });
+
+    if (hasEmptyAttribute) {
+      toast.error("Thuộc tính không được để trống key hoặc value. Vui lòng điền đầy đủ hoặc xóa thuộc tính đó.");
+      return;
+    }
+
     setSubmitLoading(true);
     try {
       const attrMap = {};
       formData.attributes.forEach(({ key, value }) => {
-        if (key) attrMap[key] = value;
+        if (key && value) attrMap[key] = value;
       });
 
       const productDTO = {
@@ -340,8 +434,13 @@ export default function ProductEditPage() {
 
   const handleSubmitVariant = async (e) => {
     e.preventDefault();
-    if (!variantFormData.color || !variantFormData.stock) {
+    if (!variantFormData.color || !variantFormData.stock || !variantFormData.price) {
       toast.error("Vui lòng điền đầy đủ thông tin bắt buộc");
+      return;
+    }
+
+    if (parseInt(variantFormData.stock) < 0 || parseInt(variantFormData.price) < 0) {
+      toast.error("Số lượng và giá không được âm");
       return;
     }
 
@@ -624,7 +723,7 @@ export default function ProductEditPage() {
                               <th className="px-4 py-2 border border-gray-300 bg-gray-100 text-gray-600 font-medium">
                                 {attr.key}
                               </th>
-                              <td className="px-4 py-2 border border-gray-300 text-gray-900">
+                              <td className="px-4 py-2 border border-gray-300 text-gray-900 whitespace-pre-wrap">
                                 {attr.value}
                               </td>
                             </tr>
@@ -731,6 +830,7 @@ export default function ProductEditPage() {
                           name="price"
                           value={formData.price}
                           onChange={handleChange}
+                          min="0"
                           className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="VD: 29990000"
                           required
@@ -753,6 +853,7 @@ export default function ProductEditPage() {
                           name="stock"
                           value={formData.stock}
                           onChange={handleChange}
+                          min="0"
                           className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="VD: 100"
                           required
@@ -782,19 +883,38 @@ export default function ProductEditPage() {
                       <div className="space-y-2">
                         {formData.attributes.map((attr, idx) => (
                           <div key={idx} className="flex gap-2 items-center">
-                            <input
-                              type="text"
-                              placeholder="Key"
-                              value={attr.key}
-                              onChange={(e) => handleAttributeChange(idx, "key", e.target.value)}
-                              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <input
-                              type="text"
+                            <div
+                              ref={el => attributeDropdownRefs.current[idx] = el}
+                              className="flex-1 relative"
+                            >
+                              <input
+                                type="text"
+                                placeholder="🔍 Tìm hoặc chọn Key"
+                                value={attr.key ? attr.key : (attributeSearchQuery[idx] || "")}
+                                onChange={(e) => handleAttributeSearchChange(idx, e.target.value)}
+                                onFocus={() => setShowAttributeDropdown(prev => ({ ...prev, [idx]: true }))}
+                                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                              />
+                              {showAttributeDropdown[idx] && getFilteredAttributes(idx).length > 0 && (
+                                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                  {getFilteredAttributes(idx).map((attribute) => (
+                                    <div
+                                      key={attribute.id}
+                                      onClick={() => handleSelectAttribute(idx, attribute.name)}
+                                      className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                    >
+                                      <p className="font-medium text-gray-800">{attribute.name}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <textarea
                               placeholder="Value"
-                              value={attr.value}
+                              value={attr.value || ""}
                               onChange={(e) => handleAttributeChange(idx, "value", e.target.value)}
-                              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              rows="2"
+                              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y min-h-[42px]"
                             />
                             <button
                               type="button"
@@ -894,6 +1014,7 @@ export default function ProductEditPage() {
                         name="stock"
                         value={variantFormData.stock}
                         onChange={handleVariantFormChange}
+                        min="0"
                         className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="VD: 50"
                         required
@@ -901,15 +1022,17 @@ export default function ProductEditPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Giá (tùy chọn)
+                        Giá <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="number"
                         name="price"
                         value={variantFormData.price}
                         onChange={handleVariantFormChange}
+                        min="0"
                         className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Để trống nếu giống giá gốc"
+                        placeholder="VD: 29990000"
+                        required
                       />
                     </div>
                   </div>

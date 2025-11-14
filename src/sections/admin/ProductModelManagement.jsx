@@ -75,7 +75,7 @@ export default function ProductModelManagement() {
         params.append('brandId', filterBrand);
       }
 
-      const response = await axios.get(`${API}/api/v1/admin/product-models?${params.toString()}`);
+      const response = await api.get(`${API}/api/v1/admin/product-models?${params.toString()}`);
       const data = response.data.data || response.data;
 
       if (data.content) {
@@ -115,10 +115,10 @@ export default function ProductModelManagement() {
 
     try {
       if (editingModel) {
-        await axios.put(`${API}/api/v1/admin/product-models/update/${editingModel.id}`, formData);
+        await api.put(`${API}/api/v1/admin/product-models/update/${editingModel.id}`, formData);
         toast.success("Cập nhật Product Model thành công!");
       } else {
-        await axios.post(`${API}/api/v1/admin/product-models/create`, formData);
+        await api.post(`${API}/api/v1/admin/product-models/create`, formData);
         toast.success("Thêm Product Model thành công!");
       }
 
@@ -154,7 +154,7 @@ export default function ProductModelManagement() {
     }
 
     try {
-      await api.delete(`/product-models/admin/delete/${id}`);
+      await api.delete(`/api/v1/admin/product-models/delete/${id}`);
       toast.success("Xóa Product Model thành công!");
       fetchProductModels();
     } catch (error) {
@@ -238,7 +238,7 @@ export default function ProductModelManagement() {
     <div className="bg-white rounded-xl shadow-lg p-8">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          Quản lý model sản phẩm
+          Quản lý nhóm sản phẩm
         </h2>
         <button
           onClick={() => setShowForm(!showForm)}
@@ -246,6 +246,45 @@ export default function ProductModelManagement() {
         >
           {showForm ? "Đóng Form" : "➕ Thêm Product Model"}
         </button>
+      </div>
+
+      {/* Info Box - Hướng dẫn */}
+      <div className="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 border-l-4 border-purple-500 rounded-lg p-6 shadow-sm">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center text-white text-2xl">
+            📱
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-gray-800 mb-2">
+              🎯 Product Model - Mẫu sản phẩm tổng quát
+            </h3>
+            <div className="space-y-2 text-sm text-gray-700">
+              <p className="flex items-start gap-2">
+                <span className="font-bold text-purple-600 mt-0.5">📋</span>
+                <span><strong>Định nghĩa:</strong> Product Model là dòng sản phẩm chung, đại diện cho một mẫu mã sản phẩm cụ thể của thương hiệu.
+                <br/>Không chứa thông tin chi tiết về giá cả, màu sắc, dung lượng hay số lượng tồn kho.</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <span className="font-bold text-purple-600 mt-0.5">🔗</span>
+                <span><strong>Quan hệ:</strong> 1 Product Model có thể có nhiều Products (biến thể) khác nhau.
+                <br/>Mỗi biến thể sẽ có giá, màu sắc, cấu hình và số lượng riêng.</span>
+              </p>
+              <div className="mt-3 p-3 bg-white rounded-lg border border-purple-200">
+                <p className="font-semibold text-gray-800 mb-1">💡 Ví dụ:</p>
+                <ul className="space-y-1 ml-4 text-xs text-gray-600">
+                  <li>• <strong className="text-purple-600">Product Model:</strong> "iPhone 15 Pro Max" (chỉ là tên dòng sản phẩm)</li>
+                  <li className="ml-4">↳ Chứa thông tin: Tên, Danh mục (Điện thoại), Thương hiệu (Apple), Mô tả chung</li>
+                  <li className="mt-2">• <strong className="text-blue-600">Product (Con):</strong> "iPhone 15 Pro Max 256GB Titan Xanh - 29.990.000₫"</li>
+                  <li className="ml-4">↳ Chứa thông tin: Giá, Màu sắc, Dung lượng, Hình ảnh, Số lượng tồn kho</li>
+                </ul>
+              </div>
+              <p className="flex items-center gap-2 mt-3 text-xs bg-purple-100 text-purple-800 px-3 py-2 rounded-lg">
+                <span className="font-bold">⚠️ Lưu ý:</span>
+                <span>Phải tạo Product Model trước, sau đó mới tạo các Products thuộc Model đó.</span>
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Search and Filter Section */}
@@ -257,7 +296,7 @@ export default function ProductModelManagement() {
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="🔍 Tìm kiếm theo tên model sản phẩm"
+              placeholder="🔍 Tìm kiếm theo tên nhóm sản phẩm"
               className="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <svg
@@ -348,11 +387,24 @@ export default function ProductModelManagement() {
       </div>
 
       {showForm && (
-        <div className="mb-8 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6">
-          <h3 className="text-xl font-bold mb-4 text-gray-800">
-            {editingModel ? "Chỉnh sửa Product Model" : "Thêm Product Model mới"}
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6 rounded-t-xl">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold">
+                  {editingModel ? "✏️ Chỉnh sửa Product Model" : "➕ Thêm Product Model mới"}
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleCancelForm}
+                  className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -424,22 +476,23 @@ export default function ProductModelManagement() {
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
-              >
-                {editingModel ? "Cập nhật" : "Thêm mới"}
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelForm}
-                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-all"
-              >
-                Hủy
-              </button>
-            </div>
-          </form>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCancelForm}
+                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-all"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+                >
+                  {editingModel ? "💾 Cập nhật" : "➕ Thêm mới"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -458,7 +511,6 @@ export default function ProductModelManagement() {
             <table className="w-full">
               <thead>
                 <tr className="border-b-2 border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">ID</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Tên</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Danh mục</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Thương hiệu</th>
@@ -469,9 +521,6 @@ export default function ProductModelManagement() {
               <tbody>
                 {productModels.map((model) => (
                 <tr key={model.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4">
-                    <span className="font-medium text-gray-600">#{model.id}</span>
-                  </td>
                   <td className="py-3 px-4">
                     <p className="font-medium text-gray-800">{model.name}</p>
                   </td>

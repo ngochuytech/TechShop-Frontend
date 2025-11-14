@@ -3,7 +3,12 @@ import { useLocation } from "react-router-dom";
 import AdminSidebar from "../components/Admin/AdminSidebar";
 import ProductModelManagement from "../sections/admin/ProductModelManagement";
 import ProductManagement from "../sections/admin/ProductManagement";
-import ProductVariantManagement from "../sections/admin/ProductVariantManagement";
+import OrderManagement from "../sections/admin/OrderManagement";
+import PromotionManagement from "../sections/admin/PromotionManagement";
+import CategoryManagement from "../sections/admin/CategoryManagement";
+import BrandManagement from "../sections/admin/BrandManagement";
+import BannerManagement from "../sections/admin/BannerManagement";
+import Dashboard from "../sections/admin/Dashboard";
 
 export default function AdminPage() {
   const location = useLocation();
@@ -18,36 +23,24 @@ export default function AdminPage() {
 
   const renderContent = () => {
     switch (activeTab) {
+      case "dashboard":
+        return <Dashboard />;
+      case "categories":
+        return <CategoryManagement />;
+      case "brands":
+        return <BrandManagement />;
       case "product-models":
         return <ProductModelManagement />;
       case "products":
         return <ProductManagement />;
-      case "product-variants":
-        return <ProductVariantManagement />;
-      case "dashboard":
-        return (
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Dashboard
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white">
-                <h3 className="text-lg font-semibold mb-2">Tổng sản phẩm</h3>
-                <p className="text-4xl font-bold">0</p>
-              </div>
-              <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-6 text-white">
-                <h3 className="text-lg font-semibold mb-2">Đơn hàng</h3>
-                <p className="text-4xl font-bold">0</p>
-              </div>
-              <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg p-6 text-white">
-                <h3 className="text-lg font-semibold mb-2">Khách hàng</h3>
-                <p className="text-4xl font-bold">0</p>
-              </div>
-            </div>
-          </div>
-        );
+      case "orders":
+        return <OrderManagement />;
+      case "promotions":
+        return <PromotionManagement />;
+      case "banners":
+        return <BannerManagement />;
       default:
-        return <ProductModelManagement />;
+        return <Dashboard />;
     }
   };
 
